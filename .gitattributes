@@ -1,0 +1,7 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.service.in text eol=lf
+*.md text eol=lf
+*.c text eol=lf
+*.S text eol=lf
+

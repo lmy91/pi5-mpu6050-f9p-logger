@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+firmware/build/
+data/decoded/*
+!data/decoded/.gitkeep
+*.log
+*.key
+*.secret
+*.bnc
+.env
+.vscode/
+Thumbs.db
+.DS_Store
