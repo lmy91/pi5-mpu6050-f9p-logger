@@ -1,5 +1,8 @@
 # Raspberry Pi 5 + STM32 + MPU6050 + ZED-F9P采集系统
 
+当前稳定版：`v1.0.0`。该版本对应2026-09-14在树莓派5上连续运行验证的
+STM32协议v3采集、原始UBX旁路、NTRIP/RTCM转发和网页监控版本。
+
 这是从`stm32-mpu6050-f9p-navigation`独立出来的树莓派实时采集项目。系统以
 STM32F103C8T6完成MPU6050/F9P硬件时间同步和协议v3输出，树莓派5负责开机
 定位服务、按需保存、原始UBX旁路、NTRIP/RTCM转发以及手机/PC网页显示。
@@ -15,6 +18,7 @@ STM32F103C8T6完成MPU6050/F9P硬件时间同步和协议v3输出，树莓派5�
 - F9P原始UBX旁路保存，包含RAWX和SFRBX，可转换RINEX观测/导航文件；
 - 网页本地轨迹、高德在线地图、IMU曲线、天空图和RTK状态；
 - 网页或终端开始/停止保存，未开始保存时仍持续实时定位；
+- 网页开始保存后显示本次采集时长，停止保存后计时归零；
 - 树莓派直接连接NTRIP，RTCM经STM32转发到F9P；
 - systemd开机自启、异常自动恢复和统一诊断命令。
 
@@ -60,7 +64,7 @@ ST-Link只连接`SWDIO、SWCLK、GND、可选NRST`。STM32由降压模块固定5
 树莓派，例如：
 
 ```bash
-git clone <你的新仓库URL> ~/pi5-mpu6050-f9p-logger
+git clone https://github.com/lmy91/pi5-mpu6050-f9p-logger.git
 cd ~/pi5-mpu6050-f9p-logger
 chmod +x scripts/*.sh raspberry_pi5/*.sh raspberry_pi5/base_station_ctl.py
 ./scripts/setup_pi.sh

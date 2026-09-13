@@ -16,7 +16,7 @@ ssh <用户名>@<树莓派IP>
 ```bash
 sudo apt-get update
 sudo apt-get install -y git
-git clone <你的仓库URL> ~/pi5-mpu6050-f9p-logger
+git clone https://github.com/lmy91/pi5-mpu6050-f9p-logger.git
 cd ~/pi5-mpu6050-f9p-logger
 chmod +x scripts/*.sh raspberry_pi5/*.sh raspberry_pi5/base_station_ctl.py
 ```
@@ -151,4 +151,3 @@ sudo systemctl restart gnss-imu-logger.service gnss-imu-dashboard.service
 ```
 
 保存期间先执行`gnss-imu-record-stop`，再更新或重启服务。
-
