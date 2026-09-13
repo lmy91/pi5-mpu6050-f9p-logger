@@ -36,6 +36,13 @@ const constellationStyle = {
 function fixed(value, digits = 3, suffix = "") {
   return Number.isFinite(value) ? `${value.toFixed(digits)}${suffix}` : "--";
 }
+function elapsedLabel(value) {
+  const total = Math.max(0, Math.floor(Number(value) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return [hours, minutes, seconds].map(item => String(item).padStart(2, "0")).join(":");
+}
 function pointKey(item) { return `${item.gps_week}:${item.gps_tow_ms}`; }
 function pointColor(item) { return item.carr_soln === 2 ? "#45e2a0" : item.carr_soln === 1 ? "#ffb84d" : "#2bd9fe"; }
 function gpsLabel(data) {
@@ -267,12 +274,14 @@ function updateValues(payload) {
   elements.positionState.className = `live-state ${payload.service_running ? "online" : "offline"}`;
   elements.positionState.lastElementChild.textContent = payload.service_running ? "定位服务：运行中" : "定位服务：已停止";
   elements.recordingState.className = `live-state ${payload.recording ? "online" : "idle"}`;
-  elements.recordingState.lastElementChild.textContent = payload.recording ? "数据采集：保存中" : "数据采集：未保存";
+  const elapsed = elapsedLabel(payload.recording_elapsed_s);
+  elements.recordingState.lastElementChild.textContent = payload.recording
+    ? `数据采集：保存中 ${elapsed}` : "数据采集：未保存";
   elements.startRecording.disabled = !payload.service_running || payload.recording;
   elements.stopRecording.disabled = !payload.service_running || !payload.recording;
   const ubxBytes = Number(payload.ubx?.recorded_bytes || 0);
   elements.recordHint.textContent = payload.recording
-    ? `正在保存：${payload.session || "正在创建目录"}；UBX ${(ubxBytes / 1048576).toFixed(2)} MiB`
+    ? `正在保存：${payload.session || "正在创建目录"}；时长 ${elapsed}；UBX ${(ubxBytes / 1048576).toFixed(2)} MiB`
     : "实时位置继续更新；当前不写入CSV或UBX";
   elements.age.textContent = Number.isFinite(payload.age_s) ? `${payload.age_s.toFixed(1)} s前` : "--";
   elements.session.textContent = `采集会话：${payload.session || "--"}`;

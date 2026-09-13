@@ -213,6 +213,11 @@ class GnssStore:
             heartbeat_ms = round(stat.st_mtime * 1000)
         heartbeat_age = max(0.0, (now_ms - heartbeat_ms) / 1000.0)
         service_running = bool(state.get("service_active")) and heartbeat_age <= 3.5
+        recording = bool(state.get("recording")) and service_running
+        recording_started_ms = state.get("recording_started_unix_ms")
+        recording_elapsed = (max(0.0, (now_ms - recording_started_ms) / 1000.0)
+                             if recording and isinstance(recording_started_ms, (int, float))
+                             else 0.0)
         imu_updated_ms = state.get("imu_updated_unix_ms")
         imu_age = (max(0.0, (now_ms - imu_updated_ms) / 1000.0)
                    if isinstance(imu_updated_ms, (int, float)) else None)
@@ -242,7 +247,9 @@ class GnssStore:
         return {
             "ok": data is not None,
             "service_running": service_running,
-            "recording": bool(state.get("recording")) and service_running,
+            "recording": recording,
+            "recording_started_unix_ms": (recording_started_ms if recording else None),
+            "recording_elapsed_s": round(recording_elapsed, 1),
             "online": service_running and data is not None and
                       gnss_age is not None and gnss_age <= 3.5,
             "age_s": round(gnss_age, 2) if gnss_age is not None else None,

@@ -485,8 +485,10 @@ def main() -> None:
     latest_satellites: list[dict[str, int]] = []
     latest_satellites_unix_ms: int | None = None
     recording_error: str | None = None
+    recording_started_unix_ms: int | None = None
 
     def start_recording() -> pathlib.Path:
+        nonlocal recording_started_unix_ms
         session = recorder.start()
         if session is None:
             raise OSError("no CSV type was selected")
@@ -496,13 +498,16 @@ def main() -> None:
         except Exception:
             recorder.stop()
             raise
+        recording_started_unix_ms = round(time.time() * 1000)
         return session
 
     def stop_recording() -> pathlib.Path | None:
+        nonlocal recording_started_unix_ms
         session = recorder.session_dir
         if ubx_tap is not None:
             ubx_tap.stop_recording()
         recorder.stop()
+        recording_started_unix_ms = None
         return session
 
     print(f"Position service on {args.port} at {args.baud} baud")
@@ -522,6 +527,7 @@ def main() -> None:
             "service_active": service_active,
             "recording": recorder.active,
             "session": recorder.session_dir.name if recorder.active and recorder.session_dir else None,
+            "recording_started_unix_ms": recording_started_unix_ms if recorder.active else None,
             "updated_unix_ms": round(now_unix * 1000),
             "started_unix_ms": round(started_unix * 1000),
             "imu_updated_unix_ms": latest_imu_unix_ms,

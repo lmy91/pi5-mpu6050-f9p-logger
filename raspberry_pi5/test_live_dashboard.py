@@ -92,7 +92,8 @@ class LiveDashboardTest(unittest.TestCase):
                         lat_deg=30.5, lon_deg=114.3)
             now_ms = round(time.time() * 1000)
             state_file.write_text(json.dumps({
-                "service_active": True, "recording": False,
+                "service_active": True, "recording": True,
+                "recording_started_unix_ms": now_ms - 12_300,
                 "updated_unix_ms": now_ms, "gnss_updated_unix_ms": now_ms,
                 "imu_updated_unix_ms": now_ms,
                 "imu": {"sample": 100, "gps_week": 2435, "gps_tow_us": 123000000,
@@ -105,7 +106,8 @@ class LiveDashboardTest(unittest.TestCase):
             store = GnssStore(root, state_file, control_file)
             result = store.latest()
             self.assertTrue(result["service_running"])
-            self.assertFalse(result["recording"])
+            self.assertTrue(result["recording"])
+            self.assertGreaterEqual(result["recording_elapsed_s"], 12.3)
             self.assertTrue(result["online"])
             self.assertTrue(result["imu_online"])
             self.assertEqual(result["imu"]["sample"], 100)

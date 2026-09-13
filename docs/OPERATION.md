@@ -35,6 +35,28 @@ ls -ltd data/decoded/20* | head
 du -sh data/decoded
 ```
 
+分析最新一次采集：
+
+```bash
+gnss-imu-analyze
+```
+
+脚本以流式方式检查IMU/GNSS/RAWX/UBX，并在会话目录生成`quality_report.md`。
+分析指定会话时执行：
+
+```bash
+gnss-imu-analyze data/decoded/20260913120000
+```
+
+已知设备保持静止时，可启用静态专项检查（会额外检查陀螺零偏和静态扰动）：
+
+```bash
+gnss-imu-analyze data/decoded/20260913120000 --mode static
+```
+
+返回码`0/1/2`分别表示正常、存在警告、存在异常。警告不一定表示数据不可用，需结合
+报告中的丢样率、定位率、RTK率和原始观测完整率判断。
+
 清理所有时间戳会话：
 
 ```bash
@@ -117,4 +139,3 @@ Windows示例：
 
 为了收齐各星座广播导航电文，开阔环境建议连续记录至少30分钟。`convbin`只能
 转换实际记录到的数据，不能补出本次未收到的星座或频点。
-

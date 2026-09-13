@@ -126,6 +126,14 @@ data/decoded/YYYYMMDDHHMMSS/
 └── f9p.ubx
 ```
 
+停止保存后，一键分析最新会话：
+
+```bash
+gnss-imu-analyze
+```
+
+终端显示正常/警告/异常结论，并在采集目录生成`quality_report.md`。
+
 正常系统关机会刷新文件；禁止在保存期间直接拔电。完整命令见
 [采集与数据](docs/OPERATION.md)。
 
@@ -210,4 +218,3 @@ data/decoded/   本机采集目录，不提交数据到Git
 ## License
 
 [MIT](LICENSE)
-
