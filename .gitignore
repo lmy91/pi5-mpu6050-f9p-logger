@@ -5,6 +5,7 @@ __pycache__/
 firmware/build/
 data/decoded/*
 !data/decoded/.gitkeep
+!data/decoded/README.md
 *.log
 *.key
 *.secret

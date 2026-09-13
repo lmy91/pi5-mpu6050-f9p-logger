@@ -199,16 +199,19 @@ python3 tools/test_decode_rawx.py
 
 ## 目录
 
-```text
-firmware/       STM32F103源码和CMake工程
-release/        可直接烧录的ELF/HEX
-raspberry_pi5/  NTRIP、网页、服务控制和测试
-tools/          协议v3采集与RAWX检查工具
-systemd/        可移植的服务模板
-scripts/        从零安装、热点、诊断脚本
-docs/           接线、烧录、安装、操作和排障文档
-data/decoded/   本机采集目录，不提交数据到Git
-```
+| 目录 | 内容 |
+|---|---|
+| [`firmware/`](firmware/README.md) | STM32F103源码和CMake工程 |
+| [`release/`](release/README.md) | 可直接烧录的ELF/HEX |
+| [`raspberry_pi5/`](raspberry_pi5/README.md) | NTRIP、网页、服务控制和测试 |
+| [`tools/`](tools/README.md) | 协议v3采集、RAWX检查和会话质量分析 |
+| [`systemd/`](systemd/README.md) | 可移植的服务模板 |
+| [`scripts/`](scripts/README.md) | 从零安装、热点和诊断脚本 |
+| [`docs/`](docs/README.md) | 接线、烧录、安装、操作和排障文档 |
+| [`data/`](data/README.md) | 本机采集目录；真实会话不提交到Git |
+
+每个受版本控制的子目录均有自己的`README.md`，源码和网页二级目录可从上表继续
+进入查看。
 
 ## 安全边界
 
