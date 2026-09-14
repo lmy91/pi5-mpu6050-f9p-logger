@@ -56,6 +56,36 @@ class AnalyzeSessionTests(unittest.TestCase):
         self.assertEqual(result["gap_count"], 1)
         self.assertTrue(any(item.code == "IMU_TIMING" for item in findings))
 
+    def test_gnss_rx_timestamp_underflow_is_reported(self):
+        fields = ["gps_week", "gps_tow_ms", "time_valid", "rx_timer_us", "fix",
+                  "num_sv", "carr_soln", "gnss_fix_ok", "diff_soln", "lat_deg",
+                  "lon_deg", "hmsl_m", "h_acc_m", "v_acc_m", "vel_n_m_s",
+                  "vel_e_m_s", "vel_d_m_s", "ground_speed_m_s", "s_acc_m_s", "pdop"]
+        base = [2436, 100_000, 1, 100_000, 3, 20, 0, 1, 0, 30.0, 114.0,
+                10.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.1, 1.5]
+        rows = [dict(zip(fields, base)),
+                dict(zip(fields, [2436, 101_000, 1, (1 << 64) - 100, 3, 20, 0,
+                                  1, 0, 30.0, 114.0, 10.0, 1.0, 2.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.1, 1.5]))]
+        self.write_csv("gnss.csv", fields, rows)
+        findings = []
+        result = analyze_session.analyze_gnss(self.session / "gnss.csv", findings)
+        self.assertEqual(result["invalid_rx_timestamp_rows"], 1)
+        self.assertTrue(any(item.code == "GNSS_RX_TIMESTAMP" for item in findings))
+
+    def test_rawx_rx_timestamp_underflow_is_reported(self):
+        fields = ["gps_week", "rcv_tow_s", "rx_timer_us", "epoch_total_meas",
+                  "gnss_id", "sv_id", "sig_id", "freq_id", "signal",
+                  "pseudorange_m", "carrier_phase_cycles", "doppler_hz",
+                  "locktime_ms", "cno_dbhz", "pr_valid", "cp_valid"]
+        row = [2436, 100.0, (1 << 64) - 100, 1, 0, 3, 0, 0, "GPS_L1CA",
+               20_000_000.0, 100_000.0, -10.0, 1000, 40, 1, 1]
+        self.write_csv("rawx.csv", fields, [dict(zip(fields, row))])
+        findings = []
+        result = analyze_session.analyze_rawx(self.session / "rawx.csv", findings)
+        self.assertEqual(result["invalid_rx_timestamp_rows"], 1)
+        self.assertTrue(any(item.code == "RAWX_RX_TIMESTAMP" for item in findings))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -307,11 +307,12 @@ def analyze_imu(path: pathlib.Path, findings: list[Finding]) -> dict[str, object
 
 
 def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, object]:
-    required = ["gps_week", "gps_tow_ms", "time_valid", "fix", "num_sv",
+    required = ["gps_week", "gps_tow_ms", "time_valid", "rx_timer_us", "fix", "num_sv",
                 "carr_soln", "gnss_fix_ok", "diff_soln", "lat_deg", "lon_deg",
                 "hmsl_m", "h_acc_m", "v_acc_m", "vel_n_m_s", "vel_e_m_s",
                 "vel_d_m_s", "ground_speed_m_s", "s_acc_m_s", "pdop"]
     rows = malformed = invalid_numeric = time_valid = fix_ok = diff = 0
+    invalid_rx_timestamps = 0
     rtk_float = rtk_fixed = invalid_coord = position_steps = 0
     gaps = backwards = duplicates = large_jumps = fix_transitions = 0
     first_time = last_time = previous_time = None
@@ -331,6 +332,7 @@ def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
                 week = int(number(row, "gps_week", True))
                 tow_ms = int(number(row, "gps_tow_ms", True))
                 valid = int(number(row, "time_valid", True))
+                rx_timer_us = int(number(row, "rx_timer_us", True))
                 fix = int(number(row, "fix", True))
                 num_sv = int(number(row, "num_sv", True))
                 carr = int(number(row, "carr_soln", True))
@@ -343,6 +345,10 @@ def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
             except (ValueError, TypeError):
                 invalid_numeric += 1
                 continue
+            # A local microsecond timestamp in the upper half of uint64 would
+            # require over 292,000 years of uptime. Values there indicate the
+            # historical low-word reconstruction underflow in STM32 firmware.
+            invalid_rx_timestamps += int(rx_timer_us >= (1 << 63))
             time_valid += int(valid == 1)
             # iTOW remains useful for relative continuity when the firmware has
             # not accepted an absolute GPS week from TIM-TP.
@@ -398,6 +404,11 @@ def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
     if malformed or invalid_numeric:
         findings.append(Finding("ERROR", "GNSS_PARSE",
                                 f"GNSS存在{malformed}行列数异常、{invalid_numeric}行数值异常"))
+    if invalid_rx_timestamps:
+        findings.append(Finding(
+            "ERROR", "GNSS_RX_TIMESTAMP",
+            f"GNSS存在{invalid_rx_timestamps}/{valid_rows}行本地接收时间戳下溢；"
+            "这些行可从低32位恢复，但不得直接用于IMU/GNSS配时"))
     if rate_hz and not 0.95 <= rate_hz <= 1.05:
         level = "ERROR" if not 0.80 <= rate_hz <= 1.20 else "WARN"
         findings.append(Finding(level, "GNSS_RATE", f"GNSS平均频率{rate_hz:.3f} Hz，偏离1 Hz"))
@@ -425,6 +436,7 @@ def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
         "rows": rows, "valid_rows": valid_rows, "duration_s": duration,
         "rate_hz": rate_hz, "malformed_rows": malformed,
         "invalid_numeric_rows": invalid_numeric, "time_valid_ratio": time_ratio,
+        "invalid_rx_timestamp_rows": invalid_rx_timestamps,
         "fix_ok_ratio": fix_ratio, "differential_ratio": ratio(diff, valid_rows),
         "rtk_float_ratio": ratio(rtk_float, valid_rows),
         "rtk_fixed_ratio": ratio(rtk_fixed, valid_rows),
@@ -441,10 +453,11 @@ def analyze_gnss(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
 
 
 def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, object]:
-    required = ["gps_week", "rcv_tow_s", "epoch_total_meas", "gnss_id", "sv_id",
+    required = ["gps_week", "rcv_tow_s", "rx_timer_us", "epoch_total_meas", "gnss_id", "sv_id",
                 "sig_id", "pseudorange_m", "carrier_phase_cycles", "doppler_hz",
                 "locktime_ms", "cno_dbhz", "pr_valid", "cp_valid"]
     rows = malformed = invalid_numeric = pr_valid = cp_valid = 0
+    invalid_rx_timestamps = 0
     epochs = incomplete_epochs = gaps = backwards = duplicates = lock_resets = 0
     first_time = last_time = previous_epoch_time = None
     current_key = None
@@ -471,6 +484,7 @@ def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
                 continue
             try:
                 week = int(number(row, "gps_week", True)); tow = float(number(row, "rcv_tow_s"))
+                rx_timer_us = int(number(row, "rx_timer_us", True))
                 expected = int(number(row, "epoch_total_meas", True))
                 gnss_id = int(number(row, "gnss_id", True)); sv_id = int(number(row, "sv_id", True))
                 sig_id = int(number(row, "sig_id", True)); freq_id = int(row.get("freq_id") or 0)
@@ -484,6 +498,7 @@ def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
             if not 1e6 < pseudorange < 1e8:
                 invalid_numeric += 1
                 continue
+            invalid_rx_timestamps += int(rx_timer_us >= (1 << 63))
             stamp = week * GPS_WEEK_S + tow; key = (week, round(tow, 4))
             if key != current_key:
                 finish_epoch()
@@ -518,6 +533,11 @@ def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
     if malformed or invalid_numeric:
         findings.append(Finding("ERROR", "RAWX_PARSE",
                                 f"RAWX存在{malformed}行列数异常、{invalid_numeric}行数值/伪距异常"))
+    if invalid_rx_timestamps:
+        findings.append(Finding(
+            "ERROR", "RAWX_RX_TIMESTAMP",
+            f"RAWX存在{invalid_rx_timestamps}/{valid_rows}行本地接收时间戳下溢；"
+            "这些行可从低32位恢复，但不得直接用于IMU/GNSS配时"))
     boundary_incomplete = sum(index in (1, epochs) for index in incomplete_indices)
     interior_incomplete = incomplete_epochs - boundary_incomplete
     if interior_incomplete:
@@ -536,6 +556,7 @@ def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
         "rows": rows, "valid_rows": valid_rows, "epochs": epochs,
         "duration_s": duration, "rate_hz": rate_hz,
         "malformed_rows": malformed, "invalid_numeric_rows": invalid_numeric,
+        "invalid_rx_timestamp_rows": invalid_rx_timestamps,
         "incomplete_epochs": incomplete_epochs,
         "boundary_incomplete_epochs": boundary_incomplete,
         "interior_incomplete_epochs": interior_incomplete, "gap_count": gaps,
