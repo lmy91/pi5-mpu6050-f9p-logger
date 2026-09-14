@@ -57,6 +57,27 @@ gnss-imu-analyze data/decoded/20260913120000 --mode static
 返回码`0/1/2`分别表示正常、存在警告、存在异常。警告不一定表示数据不可用，需结合
 报告中的丢样率、定位率、RTK率和原始观测完整率判断。
 
+## 室外完整自测
+
+天线置于开阔处，等待网页显示3D定位后执行：
+
+```bash
+gnss-imu-record-start
+gnss-imu-status
+```
+
+保持至少60秒（首次验证广播星历建议120秒），按`Ctrl+C`只退出状态显示，不会停止
+保存；随后执行：
+
+```bash
+gnss-imu-record-stop
+gnss-imu-analyze --mode dynamic
+```
+
+正常结果应满足：IMU约100 Hz、GNSS和RAWX约1 Hz、时间有效率100%、无内部缺样、
+UBX CRC错误为0，并且消息类型同时包含`02-15`（RAWX）和`02-13`（SFRBX）。文件开头
+或结尾恰好截到半个UBX帧属于正常记录边界，分析器会单独统计，不视为链路损坏。
+
 清理所有时间戳会话：
 
 ```bash

@@ -40,6 +40,18 @@ class AnalyzeSessionTests(unittest.TestCase):
         self.assertEqual(result["message_types"], {"02-15": 1, "02-13": 1})
         self.assertFalse(findings)
 
+    def test_ubx_recording_boundaries_are_not_reported_as_corruption(self):
+        path = self.session / "f9p.ubx"
+        path.write_bytes(b"partial-prefix" + ubx_frame(2, 0x15, b"raw") +
+                         ubx_frame(2, 0x13, b"nav") + b"\xb5\x62\x02")
+        findings = []
+        result = analyze_session.analyze_ubx(path, findings)
+        self.assertEqual(result["frames"], 2)
+        self.assertEqual(result["boundary_prefix_bytes"], len(b"partial-prefix"))
+        self.assertEqual(result["boundary_suffix_bytes"], 3)
+        self.assertEqual(result["internal_discarded_bytes"], 0)
+        self.assertFalse(findings)
+
     def test_imu_rate_and_gap_detection(self):
         fields = ["sample", "gps_week", "gps_tow_us", "time_valid", "timer_us",
                   "ax_raw", "ay_raw", "az_raw", "gx_raw", "gy_raw", "gz_raw",

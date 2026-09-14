@@ -577,24 +577,39 @@ def analyze_rawx(path: pathlib.Path, findings: list[Finding]) -> dict[str, objec
 def analyze_ubx(path: pathlib.Path, findings: list[Finding]) -> dict[str, object]:
     total_bytes = path.stat().st_size
     frames = bad_checksum = discarded = 0
+    boundary_prefix = boundary_suffix = internal_discarded = 0
     message_types: Counter[str] = Counter(); buffer = bytearray()
 
     def consume(final: bool = False) -> None:
         nonlocal frames, bad_checksum, discarded, buffer
+        nonlocal boundary_prefix, boundary_suffix, internal_discarded
+
+        def discard(count: int, boundary: str | None = None) -> None:
+            nonlocal discarded, boundary_prefix, boundary_suffix, internal_discarded
+            discarded += count
+            if boundary == "prefix": boundary_prefix += count
+            elif boundary == "suffix": boundary_suffix += count
+            else: internal_discarded += count
+
         while True:
             sync = buffer.find(b"\xb5\x62")
             if sync < 0:
                 keep = 1 if not final and buffer.endswith(b"\xb5") else 0
-                discarded += len(buffer) - keep
+                count = len(buffer) - keep
+                discard(count, "prefix" if frames == 0 else ("suffix" if final else None))
                 buffer = buffer[-keep:] if keep else bytearray()
                 return
             if sync:
-                discarded += sync; del buffer[:sync]
-            if len(buffer) < 6: return
+                discard(sync, "prefix" if frames == 0 else None); del buffer[:sync]
+            if len(buffer) < 6:
+                if final:
+                    discard(len(buffer), "suffix" if frames else "prefix")
+                    buffer.clear()
+                return
             length = buffer[4] | (buffer[5] << 8); frame_length = 8 + length
             if len(buffer) < frame_length:
                 if final:
-                    discarded += len(buffer); buffer.clear()
+                    discard(len(buffer), "suffix" if frames else "prefix"); buffer.clear()
                 return
             frame = buffer[:frame_length]; ck_a = ck_b = 0
             for value in frame[2:-2]:
@@ -603,7 +618,7 @@ def analyze_ubx(path: pathlib.Path, findings: list[Finding]) -> dict[str, object
                 frames += 1; message_types[f"{frame[2]:02X}-{frame[3]:02X}"] += 1
                 del buffer[:frame_length]
             else:
-                bad_checksum += 1; discarded += 1; del buffer[0]
+                bad_checksum += 1; discard(1); del buffer[0]
 
     try:
         with path.open("rb") as stream:
@@ -618,14 +633,20 @@ def analyze_ubx(path: pathlib.Path, findings: list[Finding]) -> dict[str, object
     if bad_checksum:
         level = "ERROR" if ratio(bad_checksum, frames + bad_checksum) > 0.001 else "WARN"
         findings.append(Finding(level, "UBX_CRC", f"UBX校验失败{bad_checksum}帧，成功{frames}帧"))
-    if total_bytes and ratio(discarded, total_bytes) > 0.001:
-        findings.append(Finding("WARN", "UBX_GARBAGE", f"UBX流中有{discarded}字节不属于有效帧"))
+    if total_bytes and ratio(internal_discarded, total_bytes) > 0.001:
+        findings.append(Finding(
+            "WARN", "UBX_GARBAGE",
+            f"UBX有效帧之间有{internal_discarded}个杂字节；"
+            f"首尾边界截断{boundary_prefix}/{boundary_suffix}字节"))
     if frames and message_types.get("02-15", 0) == 0:
         findings.append(Finding("WARN", "UBX_NO_RAWX", "UBX流中没有RXM-RAWX消息(02-15)"))
     if frames and message_types.get("02-13", 0) == 0:
         findings.append(Finding("WARN", "UBX_NO_SFRBX", "UBX流中没有RXM-SFRBX导航电文(02-13)"))
     return {"bytes": total_bytes, "frames": frames,
             "bad_checksum_frames": bad_checksum, "discarded_bytes": discarded,
+            "boundary_prefix_bytes": boundary_prefix,
+            "boundary_suffix_bytes": boundary_suffix,
+            "internal_discarded_bytes": internal_discarded,
             "message_types": dict(message_types.most_common())}
 
 
@@ -720,7 +741,7 @@ def build_report(session: pathlib.Path, results: dict[str, object], findings: li
               f"| IMU | {imu.get('valid_rows', 0)}行 | {fmt(imu.get('duration_s'), 1)} s | {fmt(imu.get('rate_hz'))} Hz | {fmt_ms(imu, 'dt_s')} | 缺样估计 {imu.get('estimated_missing', 0)}，饱和 {int(imu.get('clipped_accel_rows', 0) or 0)+int(imu.get('clipped_gyro_rows', 0) or 0)} |",
               f"| GNSS | {gnss.get('valid_rows', 0)}行 | {fmt(gnss.get('duration_s'), 1)} s | {fmt(gnss.get('rate_hz'))} Hz | {fmt_ms(gnss, 'dt_s')} | 间断 {gnss.get('gap_count', 0)}，跳点 {gnss.get('large_jump_count', 0)} |",
               f"| RAWX | {rawx.get('epochs', 0)}历元/{rawx.get('valid_rows', 0)}观测 | {fmt(rawx.get('duration_s'), 1)} s | {fmt(rawx.get('rate_hz'))} Hz | {fmt_ms(rawx, 'epoch_dt_s')} | 不完整历元 {rawx.get('incomplete_epochs', 0)}（边界 {rawx.get('boundary_incomplete_epochs', 0)}） |",
-              f"| UBX | {ubx.get('frames', 0)}帧/{ubx.get('bytes', 0)} B | -- | -- | -- | CRC错 {ubx.get('bad_checksum_frames', 0)}，杂字节 {ubx.get('discarded_bytes', 0)} |",
+              f"| UBX | {ubx.get('frames', 0)}帧/{ubx.get('bytes', 0)} B | -- | -- | -- | CRC错 {ubx.get('bad_checksum_frames', 0)}，帧间杂字节 {ubx.get('internal_discarded_bytes', 0)}，首尾截断 {ubx.get('boundary_prefix_bytes', 0)}/{ubx.get('boundary_suffix_bytes', 0)} |",
               "", "## IMU", "",
               f"- GNSS时间有效率：{pct(float(imu.get('time_valid_ratio', 0) or 0))}",
               f"- 加速度模长：均值 {nested_fmt(imu, 'accel_norm_m_s2', 'mean')} m/s²，P99 {nested_fmt(imu, 'accel_norm_m_s2', 'p99')} m/s²，最大 {nested_fmt(imu, 'accel_norm_m_s2', 'max')} m/s²",

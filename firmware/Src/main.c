@@ -623,12 +623,18 @@ static void gnss_send_rawx_config(void)
 
 static void gnss_send_sfrbx_config(void)
 {
-    /* Broadcast navigation words are required in the original UBX recording
-     * to create RINEX navigation files in addition to observation files. */
-    static const gnss_cfg_item_t config[] = {
-        {0x20910232u, 1u, 1u},       /* UBX-RXM-SFRBX UART1: every message */
+    /* HPG 1.13 can report SFRBX/UART1=1 while its message scheduler remains
+     * inactive.  A proven disable-then-enable CFG-MSG sequence rearms it.
+     * Rates are I2C, UART1, UART2, USB, SPI and reserved, respectively. */
+    static const uint8_t disable[] = {
+        0x02u, 0x13u, 0u, 0u, 0u, 0u, 0u, 0u,
     };
-    gnss_valset(config, sizeof config / sizeof config[0]);
+    static const uint8_t enable_uart1[] = {
+        0x02u, 0x13u, 0u, 1u, 0u, 0u, 0u, 0u,
+    };
+    gnss_ubx_send(0x06u, 0x01u, disable, sizeof disable);
+    delay_ms(20u);
+    gnss_ubx_send(0x06u, 0x01u, enable_uart1, sizeof enable_uart1);
 }
 
 static void gnss_configure(void)

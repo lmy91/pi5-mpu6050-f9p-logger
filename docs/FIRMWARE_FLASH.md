@@ -58,3 +58,6 @@ PA9输出纯ASCII协议v3：`IMU`、`GNSS`、`SAT/SAT_END`、
 配置成115200 bit/s、UBX输出和RTCM3输入，并启用PVT、SAT、RAWX、TIM-TP和
 SFRBX相关数据。F9P原始SFRBX不转换为ASCII，由Pi GPIO5旁路保存。
 
+针对实机使用的F9P HPG 1.13，固件会先关闭再开启UART1的SFRBX输出。该版本可能
+出现配置回读为1但消息调度器未实际启动的状态；明确的关闭/开启序列可重新启动调度，
+且已经用断电后自动配置、UBX帧统计和`convbin`生成RINEX导航文件验证。
