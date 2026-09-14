@@ -27,6 +27,20 @@ sudo fuser -v /dev/ttyAMA0 /dev/ttyAMA2
 
 不要让minicom、Qt、另一个Python采集器与systemd服务同时打开UART。
 
+## 断网启动后本地时间错误
+
+```bash
+date --iso-8601=seconds
+timedatectl
+systemctl status gnss-imu-time-sync.service
+journalctl -u gnss-imu-time-sync.service -b --no-pager
+sudo gnss-imu-time-sync --dry-run --timeout 10
+```
+
+Pi 5虽有RTC，但未连接后备电池时不能依靠它在完全断电后长期保持准确时间。联网时
+NTP会自动校时；断网时本项目等待F9P输出有效时间和有效闰秒后进行一次校正。若一直
+等待，检查天线、3D定位、`RAWX`和TP接线；禁止用无效GNSS周内秒强制设置系统时间。
+
 ## 临时查看STM32输出
 
 先停止服务：
@@ -121,4 +135,3 @@ dmesg | grep -i voltage
 5.16V、Pi端4.91V，属于带载线路压降。不能通过把VADJ提高到5.25V以上补偿。
 应同时测模块输出端和Pi引脚端，使用两根5V、两根GND、短粗线和可靠端子，绕过
 面包板。修复后重启，历史标志才会清零。
-

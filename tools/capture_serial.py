@@ -480,6 +480,8 @@ def main() -> None:
     latest_imu_unix_ms: int | None = None
     latest_gnss: dict[str, int | float] | None = None
     latest_gnss_unix_ms: int | None = None
+    latest_gnss_monotonic_s: float | None = None
+    gps_utc_leap_seconds: int | None = None
     satellite_epoch: list[dict[str, int]] = []
     satellite_epoch_key: tuple[int, int, int] | None = None
     latest_satellites: list[dict[str, int]] = []
@@ -533,6 +535,8 @@ def main() -> None:
             "imu_updated_unix_ms": latest_imu_unix_ms,
             "imu": latest_imu,
             "gnss_updated_unix_ms": latest_gnss_unix_ms,
+            "gnss_updated_monotonic_s": latest_gnss_monotonic_s,
+            "gps_utc_leap_seconds": gps_utc_leap_seconds,
             "gnss": latest_gnss,
             "satellites_updated_unix_ms": latest_satellites_unix_ms,
             "satellites": latest_satellites,
@@ -659,6 +663,7 @@ def main() -> None:
                     recorder.write("gnss", row)
                     latest_gnss = dict(zip(GNSS_COLUMNS, row))
                     latest_gnss_unix_ms = round(time.time() * 1000)
+                    latest_gnss_monotonic_s = time.monotonic()
                     gnss_rows += 1
                     publish_state()
                     last_state = status_now
@@ -691,7 +696,14 @@ def main() -> None:
                 elif parts[0] == "RAWX":
                     rawx_epoch = parse_rawx_header(parts)
                     if rawx_epoch is None: invalid += 1
-                    else: rawx_seen_header = True
+                    else:
+                        rawx_seen_header = True
+                        # UBX-RXM-RAWX recStat bit 0 confirms that leapSec is
+                        # valid. Publish it even when file recording is off so
+                        # the root one-shot service can set offline boot time.
+                        leap_s = int(rawx_epoch["leap_s"])
+                        if int(rawx_epoch["rec_stat"]) & 0x01 and 0 <= leap_s <= 64:
+                            gps_utc_leap_seconds = leap_s
                 elif parts[0] == "RAWX_MEAS":
                     if rawx_epoch is None and not rawx_seen_header:
                         continue

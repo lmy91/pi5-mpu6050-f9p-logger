@@ -15,6 +15,7 @@
 | `record_stop.sh` | 清除保存标志并等待文件安全关闭 | `gnss-imu-record-stop` |
 | `watch_logger_status.sh` | 从日志读取状态并在同一终端行刷新 | `gnss-imu-status` |
 | `clear_logger_data.sh` | 经路径和名称检查后清理时间戳会话 | `gnss-imu-clear-data` |
+| `gnss_time_sync.py` | 用有效GNSS周、周内秒和闰秒执行一次离线系统校时 | `gnss-imu-time-sync.service` |
 | `test_ntrip_client.py` | RTCM解析、MSM适配和流控单元测试 | `python3 -m unittest ...` |
 | `test_live_dashboard.py` | 状态、API、轨迹和敏感字段处理测试 | `python3 -m unittest ...` |
 | [`live_dashboard/`](live_dashboard/README.md) | 无构建步骤的HTML/CSS/JavaScript前端 | 浏览器访问8080端口 |
@@ -42,11 +43,10 @@ gnss-imu-base connect
 
 ```bash
 python3 -m unittest raspberry_pi5.test_ntrip_client \
-  raspberry_pi5.test_live_dashboard
+  raspberry_pi5.test_live_dashboard raspberry_pi5.test_gnss_time_sync
 python3 raspberry_pi5/live_dashboard.py --host 127.0.0.1 --port 8080
 ```
 
 直接启动网页服务适合无硬件界面开发；完整运行仍需要采集器维护
 `/run/gnss-imu/live.json`。NTRIP账号写入内存盘`/run/gnss-imu/ntrip.json`，断开或
 重启后清除，不得改成仓库内的明文配置文件。
-

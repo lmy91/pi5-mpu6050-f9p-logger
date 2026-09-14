@@ -60,6 +60,7 @@ cd ~/pi5-mpu6050-f9p-logger
 ```text
 /etc/systemd/system/gnss-imu-logger.service
 /etc/systemd/system/gnss-imu-dashboard.service
+/etc/systemd/system/gnss-imu-time-sync.service
 ```
 
 并安装以下命令：
@@ -71,19 +72,40 @@ gnss-imu-record-stop
 gnss-imu-clear-data
 gnss-imu-base
 gnss-imu-diagnose
+gnss-imu-time-sync
 ```
 
 检查：
 
 ```bash
-systemctl is-enabled gnss-imu-logger.service gnss-imu-dashboard.service
+systemctl is-enabled gnss-imu-logger.service gnss-imu-dashboard.service gnss-imu-time-sync.service
 systemctl is-active gnss-imu-logger.service gnss-imu-dashboard.service
 gnss-imu-diagnose
 ```
 
 采集服务独占两个UART。网页只读取`/run/gnss-imu/live.json`，不会再次打开串口。
 
-## 5. 网络
+## 5. 系统时间
+
+时区保持`Asia/Shanghai`，联网时由`systemd-timesyncd`正常使用NTP。Pi没有RTC后备
+电池且断网冷启动时，`gnss-imu-time-sync.service`会等待F9P同时给出有效GPS时间和
+有效GPS-UTC闰秒，然后只校正系统时钟一次。它不修改CSV中的GNSS时间戳，也不参与
+IMU/GNSS同步。
+
+检查当前状态：
+
+```bash
+date --iso-8601=seconds
+timedatectl
+systemctl status gnss-imu-time-sync.service
+journalctl -u gnss-imu-time-sync.service -b --no-pager
+sudo gnss-imu-time-sync --dry-run --timeout 10
+```
+
+`System time already agrees with GNSS`表示无需调整；`System time set from GNSS`表示
+本次开机已经离线校时。没有定位或天线遮挡时服务会等待，不会使用无效时间。
+
+## 6. 网络
 
 ### 普通局域网
 
@@ -117,7 +139,7 @@ ping -c 3 192.168.137.1
 curl -I --max-time 8 https://webapi.amap.com/
 ```
 
-## 6. 高德地图
+## 7. 高德地图
 
 本地米制轨迹不需要Key。在线地图可在每台浏览器的“地图设置”中填写Web JS API
 Key和`securityJsCode`，也可以在Pi统一创建：
@@ -138,7 +160,7 @@ chmod 600 ~/.config/gnss-imu/amap.json
 不要把该文件加入Git。在线底图由手机浏览器直接访问高德HTTPS资源，因此手机经
 Pi热点时，Pi的上游网络转发也必须可用。只有本地网页能打开不代表在线底图可用。
 
-## 7. 更新程序
+## 8. 更新程序
 
 正式使用Git远程仓库后：
 

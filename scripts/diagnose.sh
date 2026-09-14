@@ -10,6 +10,10 @@ tr -d '\0' </proc/device-tree/model 2>/dev/null; echo
 uname -a
 uptime
 
+echo '=== 时间 ==='
+date --iso-8601=seconds
+timedatectl 2>/dev/null || true
+
 echo '=== 供电 ==='
 vcgencmd get_throttled 2>/dev/null || true
 vcgencmd measure_temp 2>/dev/null || true
@@ -23,8 +27,9 @@ for device in /dev/ttyAMA0 /dev/ttyAMA2; do
 done
 
 echo '=== 服务 ==='
-systemctl is-active gnss-imu-logger.service gnss-imu-dashboard.service 2>&1
-systemctl --no-pager --full --lines=8 status gnss-imu-logger.service gnss-imu-dashboard.service 2>&1 || true
+systemctl is-active gnss-imu-logger.service gnss-imu-dashboard.service gnss-imu-time-sync.service 2>&1
+systemctl --no-pager --full --lines=8 status gnss-imu-logger.service \
+    gnss-imu-dashboard.service gnss-imu-time-sync.service 2>&1 || true
 
 echo '=== 网络 ==='
 ip -br address
@@ -34,7 +39,8 @@ echo '=== 最新采集状态 ==='
 journalctl -u gnss-imu-logger.service -n 30 --no-pager -o cat 2>/dev/null | grep '^\[' | tail -n 1 || true
 
 echo '=== 最近错误 ==='
-journalctl -u gnss-imu-logger.service -u gnss-imu-dashboard.service -p warning -n 20 --no-pager 2>/dev/null || true
+journalctl -u gnss-imu-logger.service -u gnss-imu-dashboard.service \
+    -u gnss-imu-time-sync.service -p warning -n 20 --no-pager 2>/dev/null || true
 
 echo '=== 磁盘 ==='
 df -h "$PROJECT_ROOT/data"

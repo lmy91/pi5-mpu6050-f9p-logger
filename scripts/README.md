@@ -6,7 +6,7 @@
 | 脚本 | 功能 | 是否需要重启 |
 |---|---|---|
 | `setup_pi.sh` | 安装依赖、加入`dialout`、关闭串口控制台、启用UART0/UART2 | 是 |
-| `install_services.sh` | 渲染并安装systemd服务、创建快捷命令、启动服务 | 否 |
+| `install_services.sh` | 安装定位、网页和离线GNSS校时服务及快捷命令 | 否 |
 | `setup_hotspot.sh` | 通过NetworkManager建立`GNSS-IMU-Pi`热点 | 通常否 |
 | `diagnose.sh` | 输出供电、UART、GPIO、服务、网络、错误和磁盘信息 | 否 |
 
@@ -27,4 +27,3 @@ gnss-imu-diagnose
 这些脚本针对当前Raspberry Pi OS Bookworm和Pi 5 UART覆盖层。运行前可用
 `sh -n scripts/*.sh`做语法检查。修改服务命令或项目结构时，应同步更新
 [`systemd/`](../systemd/README.md)和安装文档。
-
