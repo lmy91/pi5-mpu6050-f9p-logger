@@ -55,7 +55,7 @@ SYNC_COLUMNS = [
     "sample_count", "interrupt_count", "interrupt_overruns",
     "cc2_overcapture", "dt_gap_count", "i2c_errors",
     "d_interrupt_overruns", "d_cc2_overcapture", "d_dt_gap_count", "d_i2c_errors",
-    "backlog",
+    "backlog", "time_state", "holdover_age_ms",
 ]
 SYNC_COUNTERS = ("sample_count", "interrupt_count", "interrupt_overruns",
                  "cc2_overcapture", "dt_gap_count", "i2c_errors")
@@ -169,7 +169,10 @@ def parse_sync(line: str) -> dict[str, int] | None:
             fields[key] = value
     try:
         return {name: int(fields[name]) for name in SYNC_COUNTERS} | {
-            "pps": int(fields.get("pps", "0"))}
+            "pps": int(fields.get("pps", "0")),
+            "time_state": int(fields.get("time_state", "0")),
+            "holdover_age_ms": int(fields.get("holdover_age_ms", "0")),
+        }
     except (KeyError, ValueError):
         return None
 
@@ -740,7 +743,8 @@ def main() -> None:
                                deltas["d_interrupt_overruns"],
                                deltas["d_cc2_overcapture"],
                                deltas["d_dt_gap_count"],
-                               deltas["d_i2c_errors"], backlog]
+                               deltas["d_i2c_errors"], backlog,
+                               sync["time_state"], sync["holdover_age_ms"]]
                         recorder.write("sync", row)
                         latest_sync_diag = {**sync, **deltas, "backlog": backlog}
                         prev_sync = sync

@@ -303,6 +303,8 @@ class GnssStore:
                           imu_age is not None and imu_age <= 2.5,
             "imu": imu,
             "counts": state.get("counts", {}),
+            "time_state": ((state.get("counts") or {}).get("sync_diag") or {}).get("time_state"),
+            "holdover_age_ms": ((state.get("counts") or {}).get("sync_diag") or {}).get("holdover_age_ms"),
             "ubx": state.get("ubx", {}),
             "satellites": satellites,
             "satellites_age_s": (round(satellites_age, 2)

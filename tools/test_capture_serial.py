@@ -104,7 +104,16 @@ class GnssProtocolTests(unittest.TestCase):
             "pps": 100, "sample_count": 1000, "interrupt_count": 1001,
             "interrupt_overruns": 0, "cc2_overcapture": 0,
             "dt_gap_count": 0, "i2c_errors": 0,
+            "time_state": 0, "holdover_age_ms": 0,
         })
+
+    def test_parse_sync_extracts_time_state_and_holdover(self) -> None:
+        sync = parse_sync(
+            "# sync,pps=200,sample_count=1000,interrupt_count=1001,"
+            "interrupt_overruns=0,cc2_overcapture=0,dt_gap_count=0,i2c_errors=0,"
+            "time_state=2,holdover_age_ms=18342")
+        self.assertEqual(sync["time_state"], 2)
+        self.assertEqual(sync["holdover_age_ms"], 18342)
 
     def test_parse_sync_rejects_missing_counter(self) -> None:
         self.assertIsNone(parse_sync("# sync,pps=1,sample_count=10"))
@@ -113,7 +122,7 @@ class GnssProtocolTests(unittest.TestCase):
         self.assertEqual(u32_delta(1, 0xFFFFFFFF), 2)
         self.assertEqual(u32_delta(5, 3), 2)
 
-    def test_recorder_creates_sync_csv_with_13_columns(self) -> None:
+    def test_recorder_creates_sync_csv_with_15_columns(self) -> None:
         with tempfile.TemporaryDirectory() as parent:
             recorder = CsvRecorder(pathlib.Path(parent), {"imu"})
             session = recorder.start()
@@ -126,8 +135,8 @@ class GnssProtocolTests(unittest.TestCase):
             with sync_path.open("r", encoding="utf-8", newline="") as stream:
                 lines = stream.read().splitlines()
             self.assertEqual(len(lines), 2)  # header + one row
-            self.assertEqual(len(lines[0].split(",")), 13)
-            self.assertEqual(len(lines[1].split(",")), 13)
+            self.assertEqual(len(lines[0].split(",")), 15)
+            self.assertEqual(len(lines[1].split(",")), 15)
 
     def test_ubx_tap_writes_exact_binary_bytes_into_same_session(self) -> None:
         with tempfile.TemporaryDirectory() as parent:

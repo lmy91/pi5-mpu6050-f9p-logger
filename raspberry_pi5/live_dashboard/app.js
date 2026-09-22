@@ -10,7 +10,7 @@ const elements = {
   velD: $("velD"), gpsTime: $("gpsTime"), age: $("age"), session: $("session"), message: $("message"),
   count: $("pointCount"), empty: $("mapEmpty"), canvas: $("trackCanvas"), amap: $("amap"),
   skyCanvas: $("skyCanvas"), skyCount: $("skyCount"), skyAge: $("skyAge"),
-  imuState: $("imuState"), imuAge: $("imuAge"),
+  imuState: $("imuState"), imuAge: $("imuAge"), timeSync: $("timeSync"),
   imuAx: $("imuAx"), imuAy: $("imuAy"), imuAz: $("imuAz"),
   imuGx: $("imuGx"), imuGy: $("imuGy"), imuGz: $("imuGz"), imuTemp: $("imuTemp"),
   accelCanvas: $("accelCanvas"), gyroCanvas: $("gyroCanvas"), temperatureCanvas: $("temperatureCanvas"),
@@ -48,6 +48,11 @@ function pointColor(item) { return item.carr_soln === 2 ? "#45e2a0" : item.carr_
 function gpsLabel(data) {
   return Number.isFinite(data.gps_week) && Number.isFinite(data.gps_tow_ms)
     ? `W${data.gps_week} ${(data.gps_tow_ms / 1000).toFixed(3)}s` : "--";
+}
+function timeSyncLabel(state, ageMs) {
+  if (state === 1) return "GNSS锁定";
+  if (state === 2) return `保持模式 ${((Number(ageMs) || 0) / 1000).toFixed(1)} s`;
+  return "时间未初始化";
 }
 function validPoint(item) {
   return item && item.position_usable === true &&
@@ -289,6 +294,7 @@ function updateValues(payload) {
   updateNtrip(payload.ntrip, payload.service_running);
   updateSky(payload.satellites, payload.satellites_age_s);
   updateImu(payload);
+  elements.timeSync.textContent = timeSyncLabel(payload.time_state, payload.holdover_age_ms);
   if (!payload.ok || !payload.data) { elements.message.textContent = payload.message || "等待GNSS数据"; return; }
   const d = payload.data;
   const qualitySuffix = d.position_usable === true ? "" : (d.receiver_valid ? " · 解不可用" : "");
