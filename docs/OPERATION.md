@@ -35,28 +35,6 @@ ls -ltd data/decoded/20* | head
 du -sh data/decoded
 ```
 
-分析最新一次采集：
-
-```bash
-gnss-imu-analyze
-```
-
-脚本以流式方式检查IMU/GNSS/RAWX/UBX，并在会话目录生成`quality_report.md`。
-分析指定会话时执行：
-
-```bash
-gnss-imu-analyze data/decoded/20260913120000
-```
-
-已知设备保持静止时，可启用静态专项检查（会额外检查陀螺零偏和静态扰动）：
-
-```bash
-gnss-imu-analyze data/decoded/20260913120000 --mode static
-```
-
-返回码`0/1/2`分别表示正常、存在警告、存在异常。警告不一定表示数据不可用，需结合
-报告中的丢样率、定位率、RTK率和原始观测完整率判断。
-
 ## 室外完整自测
 
 天线置于开阔处，等待网页显示3D定位后执行：
@@ -71,12 +49,11 @@ gnss-imu-status
 
 ```bash
 gnss-imu-record-stop
-gnss-imu-analyze --mode dynamic
 ```
 
 正常结果应满足：IMU约100 Hz、GNSS和RAWX约1 Hz、时间有效率100%、无内部缺样、
 UBX CRC错误为0，并且消息类型同时包含`02-15`（RAWX）和`02-13`（SFRBX）。文件开头
-或结尾恰好截到半个UBX帧属于正常记录边界，分析器会单独统计，不视为链路损坏。
+或结尾恰好截到半个UBX帧属于正常记录边界，不视为链路损坏。
 
 清理所有时间戳会话：
 
@@ -125,21 +102,6 @@ NTRIP → Pi网络线程 → /dev/ttyAMA0 TX → PA10
 
 STM32的`#RTCM`状态返回接收/转发、丢字节和F9P使用计数。收到RTCM不等于立刻
 固定；RTK还取决于基线、共同卫星、信号质量、电离层、周跳和基站数据完整性。
-
-## RAWX质量检查
-
-停止保存后执行：
-
-```bash
-python3 tools/decode_rawx.py data/decoded/<会话>/rawx.csv
-```
-
-可输出JSON：
-
-```bash
-python3 tools/decode_rawx.py data/decoded/<会话>/rawx.csv \
-  --json data/decoded/<会话>/rawx_report.json
-```
 
 ## UBX转换RINEX
 

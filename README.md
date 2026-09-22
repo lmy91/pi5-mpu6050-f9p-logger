@@ -128,16 +128,9 @@ data/decoded/YYYYMMDDHHMMSS/
 ├── imu.csv
 ├── gnss.csv
 ├── rawx.csv
+├── sync.csv
 └── f9p.ubx
 ```
-
-停止保存后，一键分析最新会话：
-
-```bash
-gnss-imu-analyze
-```
-
-终端显示正常/警告/异常结论，并在采集目录生成`quality_report.md`。
 
 正常系统关机会刷新文件；禁止在保存期间直接拔电。完整命令见
 [采集与数据](docs/OPERATION.md)。
@@ -195,7 +188,6 @@ python3 -m unittest \
   raspberry_pi5.test_ntrip_client \
   raspberry_pi5.test_live_dashboard \
   tools.test_capture_serial
-python3 tools/test_decode_rawx.py
 ```
 
 ## 目录
@@ -205,7 +197,7 @@ python3 tools/test_decode_rawx.py
 | [`firmware/`](firmware/README.md) | STM32F103源码和CMake工程 |
 | [`release/`](release/README.md) | 可直接烧录的ELF/HEX |
 | [`raspberry_pi5/`](raspberry_pi5/README.md) | NTRIP、网页、服务控制和测试 |
-| [`tools/`](tools/README.md) | 协议v3采集、RAWX检查和会话质量分析 |
+| [`tools/`](tools/README.md) | 协议v3采集与sync诊断 |
 | [`systemd/`](systemd/README.md) | 可移植的服务模板 |
 | [`scripts/`](scripts/README.md) | 从零安装、热点和诊断脚本 |
 | [`docs/`](docs/README.md) | 接线、烧录、安装、操作和排障文档 |

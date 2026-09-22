@@ -8,7 +8,6 @@
 ```bash
 gnss-imu-record-start   # 新建会话并开始写文件
 gnss-imu-record-stop    # 刷新、关闭文件，定位服务继续运行
-gnss-imu-analyze        # 分析最新会话
 ```
 
 历史数据可能很大，默认不提交到Git。复制、压缩或删除数据前应先停止保存；清理时

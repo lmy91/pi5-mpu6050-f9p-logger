@@ -22,7 +22,6 @@ mkdir -p "$PROJECT_DIR/data/decoded" "$HOME_DIR/.config/gnss-imu"
 chmod +x "$PROJECT_DIR"/raspberry_pi5/*.sh "$PROJECT_DIR"/raspberry_pi5/base_station_ctl.py
 chmod +x "$PROJECT_DIR"/raspberry_pi5/gnss_time_sync.py
 chmod +x "$PROJECT_DIR"/scripts/*.sh
-chmod +x "$PROJECT_DIR"/tools/analyze_session.py
 
 render_unit() {
     input=$1
@@ -45,7 +44,6 @@ sudo ln -sf "$PROJECT_DIR/raspberry_pi5/record_stop.sh" /usr/local/bin/gnss-imu-
 sudo ln -sf "$PROJECT_DIR/raspberry_pi5/clear_logger_data.sh" /usr/local/bin/gnss-imu-clear-data
 sudo ln -sf "$PROJECT_DIR/raspberry_pi5/base_station_ctl.py" /usr/local/bin/gnss-imu-base
 sudo ln -sf "$PROJECT_DIR/scripts/diagnose.sh" /usr/local/bin/gnss-imu-diagnose
-sudo ln -sf "$PROJECT_DIR/tools/analyze_session.py" /usr/local/bin/gnss-imu-analyze
 sudo ln -sf "$PROJECT_DIR/raspberry_pi5/gnss_time_sync.py" /usr/local/bin/gnss-imu-time-sync
 
 sudo systemctl daemon-reload

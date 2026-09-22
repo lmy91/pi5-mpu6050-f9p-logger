@@ -10,8 +10,8 @@ YYYYMMDDHHMMSS/
 ├── imu.csv            约100 Hz，带GNSS时间戳的IMU原始值和SI换算值
 ├── gnss.csv           约1 Hz，位置、NED速度、精度、卫星数和RTK状态
 ├── rawx.csv           约1 Hz，逐信号伪距、载波、多普勒和质量标志
-├── f9p.ubx            F9P UART原始UBX旁路字节流
-└── quality_report.md  运行质量分析后生成，不是采集器必定创建
+├── sync.csv           约1 Hz，#sync六项诊断量与增量
+└── f9p.ubx            F9P UART原始UBX旁路字节流
 ```
 
 开始、停止、检查和RINEX转换命令见
