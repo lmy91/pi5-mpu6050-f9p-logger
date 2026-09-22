@@ -4,8 +4,8 @@
 
 | 文件 | 用途 | SHA-256 |
 |---|---|---|
-| `mpu6050_f9p_navigation.hex` | STM32CubeProgrammer或其他烧录器使用的Intel HEX | `7904f69d733e5f18a93080db8c175abfc64a8a860eef29a23214c03ba705498c` |
-| `mpu6050_f9p_navigation.elf` | 烧录、符号调试和反汇编 | `00318bc5386d320f7c43f5f0fb7c74ba3b0ca0991ba7f4072e95677e17d805ba` |
+| `mpu6050_f9p_navigation.hex` | STM32CubeProgrammer或其他烧录器使用的Intel HEX | `1DCFF9A3036BEABFFD0CC02D584A79A2729F4B69A549F884C5E7DF73FA2B1C00` |
+| `mpu6050_f9p_navigation.elf` | 烧录、符号调试和反汇编 | `5E14349482AFE638644DA4B66B326DE3574F545D25B1E70FCDC747F5C5ABF039` |
 
 完整ST-Link接线和图形/命令行烧录步骤见
 [`docs/FIRMWARE_FLASH.md`](../docs/FIRMWARE_FLASH.md)。发布文件必须来自干净的
