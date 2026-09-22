@@ -12,3 +12,7 @@
 `Release`构建；重新编译后应同时替换ELF和HEX、更新上表校验值、运行主机端协议
 测试，并在实机验证100 Hz IMU、1 Hz GNSS/RAWX与RTCM转发后再提交。
 
+发布文件对应的固件基线与上游提交记录在根目录
+[`UPSTREAM_VERSION`](../UPSTREAM_VERSION)。同步固件源码后必须重新编译并更新本目录
+的 HEX/ELF，保证产物与源码来自同一提交，避免烧录到过期二进制。
+

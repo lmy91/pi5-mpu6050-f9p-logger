@@ -10,6 +10,21 @@ STM32F103C8T6完成MPU6050/F9P硬件时间同步和协议v3输出，树莓派5�
 本项目不包含PC Qt和组合导航算法，适合作为后续树莓派实时GNSS/INS解算的
 稳定数据入口。
 
+## 上游版本对应关系
+
+固件和串口协议的唯一上游是
+[`stm32-mpu6050-f9p-navigation`](https://github.com/lmy91/stm32-mpu6050-f9p-navigation)。
+本仓库的 `firmware/` 与 `release/` 是**部署快照**，只在主项目修改并验证后同步过来，
+**不在本仓库直接修改固件源码**。同步流程固定为：主项目开发 → 测试 → 冻结提交 →
+同步到本仓库 → 重新编译 `release/` → Pi 实机验证。
+
+当前快照对应的上游提交、固件基线和协议版本记录在 [`UPSTREAM_VERSION`](UPSTREAM_VERSION)。
+每次同步固件或协议后必须更新该文件并重新编译 `release/`，保证 `release/` 产物与源码
+来自同一提交。
+
+本仓库专属逻辑（网页、systemd、NTRIP、UBX 旁路、Wi-Fi 热点、GNSS 校时）只在这里
+修改，不反向复制回主项目。
+
 ## 功能
 
 - 100 Hz带GNSS时间戳的MPU6050原始IMU；
