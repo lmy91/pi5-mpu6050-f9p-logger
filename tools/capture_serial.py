@@ -47,6 +47,19 @@ RAWX_COLUMNS = [
 ]
 LOG_TYPES = ("imu", "gnss", "rawx")
 
+# Observability counters emitted once per PPS in the "# sync" line. The four
+# "d_" columns are unsigned-32 deltas vs. the previous # sync (first row = 0);
+# backlog = interrupt_count - sample_count (in-flight captures not yet emitted).
+SYNC_COLUMNS = [
+    "unix_ms", "pps",
+    "sample_count", "interrupt_count", "interrupt_overruns",
+    "cc2_overcapture", "dt_gap_count", "i2c_errors",
+    "d_interrupt_overruns", "d_cc2_overcapture", "d_dt_gap_count", "d_i2c_errors",
+    "backlog",
+]
+SYNC_COUNTERS = ("sample_count", "interrupt_count", "interrupt_overruns",
+                 "cc2_overcapture", "dt_gap_count", "i2c_errors")
+
 SIGNALS = {
     (0, 0): ("GPS_L1CA", 1575.42), (0, 3): ("GPS_L2CL", 1227.60),
     (0, 4): ("GPS_L2CM", 1227.60), (1, 0): ("SBAS_L1CA", 1575.42),
@@ -143,6 +156,27 @@ def parse_satellite_end(parts: list[str]) -> tuple[int, int, int, int] | None:
             valid not in (0, 1) or not 0 <= count <= 255):
         return None
     return week, tow_ms, valid, count
+
+
+def parse_sync(line: str) -> dict[str, int] | None:
+    """Parse one "# sync,key=value,..." diagnostic line into its counters."""
+    if not line.startswith("# sync,"):
+        return None
+    fields: dict[str, str] = {}
+    for item in line[len("# sync,"):].split(","):
+        if "=" in item:
+            key, value = item.split("=", 1)
+            fields[key] = value
+    try:
+        return {name: int(fields[name]) for name in SYNC_COUNTERS} | {
+            "pps": int(fields.get("pps", "0"))}
+    except (KeyError, ValueError):
+        return None
+
+
+def u32_delta(current: int, previous: int) -> int:
+    """Unsigned 32-bit difference to survive firmware counter wrap."""
+    return (current - previous) & 0xFFFFFFFF
 
 
 def parse_imu(parts: list[str], first_timer_us: int | None,
@@ -260,6 +294,15 @@ class CsvRecorder:
                 stream.flush()
                 self.streams[kind] = stream
                 self.writers[kind] = writer
+            # sync.csv is an always-on diagnostic, independent of --save.
+            sync_path = self.session_dir / "sync.csv"
+            sync_stream = self.stack.enter_context(
+                sync_path.open("w", encoding="utf-8", newline=""))
+            sync_writer = csv.writer(sync_stream, lineterminator="\n")
+            sync_writer.writerow(SYNC_COLUMNS)
+            sync_stream.flush()
+            self.streams["sync"] = sync_stream
+            self.writers["sync"] = sync_writer
         except Exception:
             self.stop()
             raise
@@ -282,9 +325,10 @@ class CsvRecorder:
             return False
         writer.writerow(row)
         self.rows_since_flush += 1
-        if kind == "gnss":
+        if kind in ("gnss", "sync"):
             # The LAN dashboard follows the live state file, while immediate
             # GNSS flush also keeps the on-disk navigation result current.
+            # sync.csv is one row per second and should stay visible too.
             self.streams[kind].flush()
         if self.rows_since_flush >= 100:
             for stream in self.streams.values():
@@ -471,6 +515,8 @@ def main() -> None:
     imu_rows = gnss_rows = rawx_rows = sat_rows = invalid = lost = 0
     rawx_epoch = None; rawx_seen_header = False
     first_timer_us = last_timer_us = previous_sample = None
+    prev_sync = None
+    latest_sync_diag = None
     started = time.monotonic()
     started_unix = time.time()
     last_status = started
@@ -550,7 +596,8 @@ def main() -> None:
                 "error": "", "forwarded_bytes": 0, "bridge_ready": False,
             },
             "counts": {"imu": imu_rows, "gnss": gnss_rows, "rawx": rawx_rows,
-                       "sat": sat_rows, "lost": lost, "invalid": invalid},
+                       "sat": sat_rows, "lost": lost, "invalid": invalid,
+                       "sync_diag": latest_sync_diag},
         })
 
     try:
@@ -637,6 +684,40 @@ def main() -> None:
                         invalid += 1
                     else:
                         ntrip.update_bridge(report)
+                    continue
+                if line.startswith("# sync,"):
+                    sync = parse_sync(line)
+                    if sync is not None:
+                        if prev_sync is not None:
+                            deltas = {
+                                "d_interrupt_overruns": u32_delta(
+                                    sync["interrupt_overruns"],
+                                    prev_sync["interrupt_overruns"]),
+                                "d_cc2_overcapture": u32_delta(
+                                    sync["cc2_overcapture"],
+                                    prev_sync["cc2_overcapture"]),
+                                "d_dt_gap_count": u32_delta(
+                                    sync["dt_gap_count"],
+                                    prev_sync["dt_gap_count"]),
+                                "d_i2c_errors": u32_delta(
+                                    sync["i2c_errors"], prev_sync["i2c_errors"]),
+                            }
+                        else:
+                            deltas = {"d_interrupt_overruns": 0, "d_cc2_overcapture": 0,
+                                      "d_dt_gap_count": 0, "d_i2c_errors": 0}
+                        backlog = (sync["interrupt_count"] -
+                                   sync["sample_count"]) & 0xFFFFFFFF
+                        row = [round(time.time() * 1000), sync["pps"],
+                               sync["sample_count"], sync["interrupt_count"],
+                               sync["interrupt_overruns"], sync["cc2_overcapture"],
+                               sync["dt_gap_count"], sync["i2c_errors"],
+                               deltas["d_interrupt_overruns"],
+                               deltas["d_cc2_overcapture"],
+                               deltas["d_dt_gap_count"],
+                               deltas["d_i2c_errors"], backlog]
+                        recorder.write("sync", row)
+                        latest_sync_diag = {**sync, **deltas, "backlog": backlog}
+                        prev_sync = sync
                     continue
                 if line.startswith("#"):
                     continue

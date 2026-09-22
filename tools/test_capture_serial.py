@@ -7,7 +7,8 @@ import tempfile
 import unittest
 
 from tools.capture_serial import (CsvRecorder, F9pUbxTap, GNSS_COLUMNS, IMU_COLUMNS,
-                                  RAWX_COLUMNS, imu_live_sample, parse_gnss, parse_imu,
+                                  RAWX_COLUMNS, SYNC_COLUMNS, imu_live_sample,
+                                  parse_gnss, parse_imu, parse_sync, u32_delta,
                                   create_session_directory, parse_rawx_header,
                                   parse_rawx_measurement, parse_satellite,
                                   parse_satellite_end)
@@ -94,6 +95,39 @@ class GnssProtocolTests(unittest.TestCase):
             self.assertTrue((session / "imu.csv").is_file())
             self.assertTrue((session / "gnss.csv").is_file())
             self.assertFalse((session / "rawx.csv").exists())
+
+    def test_parse_sync_extracts_six_counters(self) -> None:
+        sync = parse_sync(
+            "# sync,pps=100,sample_count=1000,interrupt_count=1001,"
+            "interrupt_overruns=0,cc2_overcapture=0,dt_gap_count=0,i2c_errors=0")
+        self.assertEqual(sync, {
+            "pps": 100, "sample_count": 1000, "interrupt_count": 1001,
+            "interrupt_overruns": 0, "cc2_overcapture": 0,
+            "dt_gap_count": 0, "i2c_errors": 0,
+        })
+
+    def test_parse_sync_rejects_missing_counter(self) -> None:
+        self.assertIsNone(parse_sync("# sync,pps=1,sample_count=10"))
+
+    def test_u32_delta_survives_wrap(self) -> None:
+        self.assertEqual(u32_delta(1, 0xFFFFFFFF), 2)
+        self.assertEqual(u32_delta(5, 3), 2)
+
+    def test_recorder_creates_sync_csv_with_13_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as parent:
+            recorder = CsvRecorder(pathlib.Path(parent), {"imu"})
+            session = recorder.start()
+            self.assertIsNotNone(session)
+            recorder.write("sync", [0] * len(SYNC_COLUMNS))
+            recorder.stop()
+            assert session is not None
+            sync_path = session / "sync.csv"
+            self.assertTrue(sync_path.is_file())
+            with sync_path.open("r", encoding="utf-8", newline="") as stream:
+                lines = stream.read().splitlines()
+            self.assertEqual(len(lines), 2)  # header + one row
+            self.assertEqual(len(lines[0].split(",")), 13)
+            self.assertEqual(len(lines[1].split(",")), 13)
 
     def test_ubx_tap_writes_exact_binary_bytes_into_same_session(self) -> None:
         with tempfile.TemporaryDirectory() as parent:
