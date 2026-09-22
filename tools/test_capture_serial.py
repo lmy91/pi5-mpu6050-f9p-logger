@@ -7,11 +7,11 @@ import tempfile
 import unittest
 
 from tools.capture_serial import (CsvRecorder, F9pUbxTap, GNSS_COLUMNS, IMU_COLUMNS,
-                                  RAWX_COLUMNS, SYNC_COLUMNS, imu_live_sample,
-                                  parse_gnss, parse_imu, parse_sync, u32_delta,
-                                  create_session_directory, parse_rawx_header,
-                                  parse_rawx_measurement, parse_satellite,
-                                  parse_satellite_end)
+                                  RAWX_COLUMNS, SYNC_COLUMNS, gnss_quality,
+                                  imu_live_sample, parse_gnss, parse_imu,
+                                  parse_sync, u32_delta, create_session_directory,
+                                  parse_rawx_header, parse_rawx_measurement,
+                                  parse_satellite, parse_satellite_end)
 
 
 class GnssProtocolTests(unittest.TestCase):
@@ -154,6 +154,35 @@ class GnssProtocolTests(unittest.TestCase):
             "SAT_END,2435,123000,1,25".split(",")), (2435, 123000, 1, 25))
         self.assertIsNone(parse_satellite(
             "SAT,2435,123000,1,3,19,47,91,0,1".split(",")))
+
+    def test_gnss_quality_rejects_poor_3d_fix(self) -> None:
+        # Real indoor case: F9P reports a 3D fix but the solution is unusable.
+        receiver_valid, position_usable, reasons = gnss_quality(
+            fix=3, gnss_fix_ok=1, num_sv=4, h_acc_m=67.0, pdop=11.86)
+        self.assertTrue(receiver_valid)
+        self.assertFalse(position_usable)
+        self.assertIn("num_sv<6", reasons)
+        self.assertIn("h_acc>20m", reasons)
+        self.assertIn("pdop>6", reasons)
+
+    def test_gnss_quality_accepts_good_3d_fix(self) -> None:
+        receiver_valid, position_usable, reasons = gnss_quality(
+            fix=3, gnss_fix_ok=1, num_sv=15, h_acc_m=1.2, pdop=1.5)
+        self.assertTrue(receiver_valid)
+        self.assertTrue(position_usable)
+        self.assertEqual(reasons, [])
+
+    def test_gnss_quality_rejects_no_fix(self) -> None:
+        receiver_valid, position_usable, _ = gnss_quality(
+            fix=0, gnss_fix_ok=0, num_sv=8, h_acc_m=5.0, pdop=2.0)
+        self.assertFalse(receiver_valid)
+        self.assertFalse(position_usable)
+
+    def test_gnss_quality_rejects_unconfirmed_fix(self) -> None:
+        receiver_valid, position_usable, _ = gnss_quality(
+            fix=3, gnss_fix_ok=0, num_sv=15, h_acc_m=1.2, pdop=1.5)
+        self.assertFalse(receiver_valid)
+        self.assertFalse(position_usable)
 
 
 if __name__ == "__main__":

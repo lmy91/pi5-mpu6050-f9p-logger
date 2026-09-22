@@ -246,6 +246,32 @@ def parse_gnss(parts: list[str]) -> list[int | float] | None:
     ]
 
 
+def gnss_quality(fix: int, gnss_fix_ok: int, num_sv: int,
+                 h_acc_m: float, pdop: float) -> tuple[bool, bool, list[str]]:
+    """Application-level GNSS solution quality.
+
+    ``receiver_valid`` reflects the F9P's own 3D fix; ``position_usable`` is the
+    stricter gate used for the live/recorded trajectory. A poor 3D fix stays in
+    gnss.csv but must not be drawn as a track point. ``time_valid`` (STM32 time
+    sync) is intentionally NOT part of this gate: time sync and position quality
+    are independent.
+    """
+    receiver_valid = fix == 3 and gnss_fix_ok == 1
+    reasons: list[str] = []
+    if fix != 3:
+        reasons.append("fix!=3")
+    elif not gnss_fix_ok:
+        reasons.append("gnss_fix_ok=0")
+    if num_sv < 6:
+        reasons.append("num_sv<6")
+    if h_acc_m > 20.0:
+        reasons.append("h_acc>20m")
+    if pdop > 6.0:
+        reasons.append("pdop>6")
+    position_usable = receiver_valid and not reasons
+    return receiver_valid, position_usable, reasons
+
+
 def create_session_directory(parent: pathlib.Path, stamp: str) -> pathlib.Path:
     parent.mkdir(parents=True, exist_ok=True)
     for index in range(1000):
@@ -743,6 +769,12 @@ def main() -> None:
                         invalid += 1; continue
                     recorder.write("gnss", row)
                     latest_gnss = dict(zip(GNSS_COLUMNS, row))
+                    (latest_gnss["receiver_valid"],
+                     latest_gnss["position_usable"],
+                     latest_gnss["quality_reason"]) = gnss_quality(
+                        latest_gnss["fix"], latest_gnss["gnss_fix_ok"],
+                        latest_gnss["num_sv"], latest_gnss["h_acc_m"],
+                        latest_gnss["pdop"])
                     latest_gnss_unix_ms = round(time.time() * 1000)
                     latest_gnss_monotonic_s = time.monotonic()
                     gnss_rows += 1

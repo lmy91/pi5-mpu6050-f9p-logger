@@ -40,6 +40,51 @@ class LiveDashboardTest(unittest.TestCase):
         self.assertEqual(value["fix_text"], "3D / RTK固定")
         self.assertEqual(value["num_sv"], 25)
 
+    def test_normalize_gnss_marks_poor_3d_fix_unusable(self):
+        row = dict.fromkeys(COLUMNS, "0")
+        row.update(gps_week="2435", gps_tow_ms="123400", fix="3", gnss_fix_ok="1",
+                   num_sv="4", h_acc_m="67.0", pdop="11.86",
+                   lat_deg="30.5", lon_deg="114.3")
+        value = normalize_gnss(row)
+        self.assertTrue(value["receiver_valid"])
+        self.assertFalse(value["position_usable"])
+        self.assertIn("num_sv<6", value["quality_reason"])
+        self.assertIn("h_acc>20m", value["quality_reason"])
+        self.assertIn("pdop>6", value["quality_reason"])
+
+    def test_normalize_gnss_marks_good_fix_usable(self):
+        row = dict.fromkeys(COLUMNS, "0")
+        row.update(gps_week="2435", gps_tow_ms="123400", fix="3", gnss_fix_ok="1",
+                   num_sv="15", h_acc_m="1.2", pdop="1.5",
+                   lat_deg="30.5", lon_deg="114.3")
+        value = normalize_gnss(row)
+        self.assertTrue(value["position_usable"])
+        self.assertEqual(value["quality_reason"], [])
+
+    def test_track_filters_poor_3d_fix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            session = root / "20260911120000"
+            session.mkdir()
+            with (session / "gnss.csv").open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.DictWriter(stream, fieldnames=COLUMNS)
+                writer.writeheader()
+                good = dict.fromkeys(COLUMNS, 0)
+                good.update(gps_week=2435, gps_tow_ms=1000, fix=3, gnss_fix_ok=1,
+                            num_sv=15, h_acc_m=1.2, pdop=1.5,
+                            lat_deg=30.5, lon_deg=114.3)
+                writer.writerow(good)
+                bad = dict.fromkeys(COLUMNS, 0)
+                bad.update(gps_week=2435, gps_tow_ms=2000, fix=3, gnss_fix_ok=1,
+                           num_sv=4, h_acc_m=67.0, pdop=11.86,
+                           lat_deg=30.6, lon_deg=114.4)
+                writer.writerow(bad)
+            result = GnssStore(root).track(100)
+            self.assertTrue(result["ok"])
+            self.assertEqual(len(result["points"]), 1)
+            self.assertEqual(result["points"][0]["gps_tow_ms"], 1000)
+            self.assertTrue(result["points"][0]["position_usable"])
+
     def test_newest_valid_session_and_latest_row(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

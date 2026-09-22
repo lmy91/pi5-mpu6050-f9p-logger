@@ -50,7 +50,8 @@ function gpsLabel(data) {
     ? `W${data.gps_week} ${(data.gps_tow_ms / 1000).toFixed(3)}s` : "--";
 }
 function validPoint(item) {
-  return item && Number.isFinite(item.lat_deg) && Number.isFinite(item.lon_deg) &&
+  return item && item.position_usable === true &&
+    Number.isFinite(item.lat_deg) && Number.isFinite(item.lon_deg) &&
     Math.abs(item.lat_deg) <= 90 && Math.abs(item.lon_deg) <= 180;
 }
 
@@ -290,7 +291,9 @@ function updateValues(payload) {
   updateImu(payload);
   if (!payload.ok || !payload.data) { elements.message.textContent = payload.message || "等待GNSS数据"; return; }
   const d = payload.data;
-  elements.fix.textContent = d.fix_text || "--"; elements.satellites.textContent = d.num_sv ?? "--";
+  const qualitySuffix = d.position_usable === true ? "" : (d.receiver_valid ? " · 解不可用" : "");
+  elements.fix.textContent = (d.fix_text || "--") + qualitySuffix;
+  elements.satellites.textContent = d.num_sv ?? "--";
   elements.pdop.textContent = fixed(d.pdop, 2); elements.speed.textContent = fixed(d.ground_speed_m_s, 3);
   elements.hAcc.textContent = fixed(d.h_acc_m, 3); elements.latitude.textContent = fixed(d.lat_deg, 9, "°");
   elements.longitude.textContent = fixed(d.lon_deg, 9, "°"); elements.height.textContent = fixed(d.height_m, 3, " m");

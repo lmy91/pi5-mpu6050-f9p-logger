@@ -71,9 +71,39 @@ def _number(row: dict[str, str], name: str, integer: bool = False):
     return number
 
 
+def _position_quality(fix, gnss_fix_ok, num_sv, h_acc_m, pdop):
+    """Application-level GNSS solution quality for the web track.
+
+    ``receiver_valid`` reflects the F9P's own 3D fix; ``position_usable`` is the
+    stricter gate that decides whether a point may be drawn. The thresholds
+    mirror those in ``tools/capture_serial.py`` so live and recorded tracks use
+    the same rule. ``time_valid`` is deliberately NOT used here.
+    """
+    receiver_valid = (fix == 3 and gnss_fix_ok == 1)
+    reasons = []
+    if fix != 3:
+        reasons.append("fix!=3")
+    elif not gnss_fix_ok:
+        reasons.append("gnss_fix_ok=0")
+    if num_sv is None or num_sv < 6:
+        reasons.append("num_sv<6")
+    if h_acc_m is None or h_acc_m > 20.0:
+        reasons.append("h_acc>20m")
+    if pdop is None or pdop > 6.0:
+        reasons.append("pdop>6")
+    position_usable = receiver_valid and not reasons
+    return receiver_valid, position_usable, reasons
+
+
 def normalize_gnss(row: dict[str, str]) -> dict[str, int | float | str | None]:
     fix = _number(row, "fix", True)
     carrier = _number(row, "carr_soln", True)
+    num_sv = _number(row, "num_sv", True)
+    gnss_fix_ok = _number(row, "gnss_fix_ok", True)
+    h_acc_m = _number(row, "h_acc_m")
+    pdop = _number(row, "pdop")
+    receiver_valid, position_usable, quality_reason = _position_quality(
+        fix, gnss_fix_ok, num_sv, h_acc_m, pdop)
     fix_names = {0: "无定位", 1: "航迹推算", 2: "2D", 3: "3D", 4: "GNSS+DR", 5: "仅时间"}
     carrier_names = {0: "单点", 1: "RTK浮点", 2: "RTK固定"}
     fix_text = fix_names.get(fix, f"状态{fix}" if fix is not None else "未知")
@@ -85,21 +115,24 @@ def normalize_gnss(row: dict[str, str]) -> dict[str, int | float | str | None]:
         "time_valid": _number(row, "time_valid", True),
         "fix": fix,
         "fix_text": fix_text,
-        "num_sv": _number(row, "num_sv", True),
+        "num_sv": num_sv,
         "carr_soln": carrier,
-        "gnss_fix_ok": _number(row, "gnss_fix_ok", True),
+        "gnss_fix_ok": gnss_fix_ok,
         "diff_soln": _number(row, "diff_soln", True),
         "lat_deg": _number(row, "lat_deg"),
         "lon_deg": _number(row, "lon_deg"),
         "height_m": _number(row, "hmsl_m"),
-        "h_acc_m": _number(row, "h_acc_m"),
+        "h_acc_m": h_acc_m,
         "v_acc_m": _number(row, "v_acc_m"),
         "vel_n_m_s": _number(row, "vel_n_m_s"),
         "vel_e_m_s": _number(row, "vel_e_m_s"),
         "vel_d_m_s": _number(row, "vel_d_m_s"),
         "ground_speed_m_s": _number(row, "ground_speed_m_s"),
         "s_acc_m_s": _number(row, "s_acc_m_s"),
-        "pdop": _number(row, "pdop"),
+        "pdop": pdop,
+        "receiver_valid": receiver_valid,
+        "position_usable": position_usable,
+        "quality_reason": quality_reason,
     }
 
 
@@ -240,10 +273,14 @@ class GnssStore:
             message = "定位服务运行中，但GNSS结果超过3.5秒未更新"
         elif state.get("recording_error"):
             message = f"保存启动失败：{state['recording_error']}"
+        elif not data.get("position_usable"):
+            reason = "、".join(data.get("quality_reason") or []) or "质量不达标"
+            message = f"GNSS数据流正常，但当前位置不可用（{reason}）"
         elif state.get("recording"):
             message = "实时定位正常，正在保存采集文件"
         else:
             message = "实时定位正常，当前不保存采集文件"
+        position_usable = bool(data.get("position_usable")) if data is not None else False
         return {
             "ok": data is not None,
             "service_running": service_running,
@@ -252,6 +289,11 @@ class GnssStore:
             "recording_elapsed_s": round(recording_elapsed, 1),
             "online": service_running and data is not None and
                       gnss_age is not None and gnss_age <= 3.5,
+            "gnss_stream_online": service_running and data is not None and
+                                  gnss_age is not None and gnss_age <= 3.5,
+            "position_usable": position_usable,
+            "receiver_valid": bool(data.get("receiver_valid")) if data is not None else False,
+            "quality_reason": (data.get("quality_reason") or []) if data is not None else [],
             "age_s": round(gnss_age, 2) if gnss_age is not None else None,
             "session": state.get("session"),
             "updated_unix_ms": gnss_updated_ms,
@@ -520,7 +562,8 @@ class GnssStore:
                 for row in csv.DictReader(stream):
                     item = normalize_gnss(row)
                     lat, lon = item["lat_deg"], item["lon_deg"]
-                    if (isinstance(lat, float) and isinstance(lon, float)
+                    if (item.get("position_usable")
+                            and isinstance(lat, float) and isinstance(lon, float)
                             and -90 <= lat <= 90 and -180 <= lon <= 180):
                         rows.append({
                             "gps_week": item["gps_week"],
@@ -528,6 +571,7 @@ class GnssStore:
                             "lat_deg": lat,
                             "lon_deg": lon,
                             "carr_soln": item["carr_soln"],
+                            "position_usable": True,
                         })
         except (OSError, csv.Error, UnicodeError) as error:
             return {"ok": False, "points": [], "message": str(error)}
