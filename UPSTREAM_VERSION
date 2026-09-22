@@ -4,10 +4,10 @@
 repository = lmy91/stm32-mpu6050-f9p-navigation
 
 # 本仓库 firmware/ 最后一次同步时，上游固件 main.c 对应的提交
-firmware_baseline = 3e69a9900aa1174e1ddc34fd1b672f7d3f491d64
+firmware_baseline = 4633158ff5cd58d20e87b41089d3446b8a098a61
 
 # 同步时上游仓库 HEAD（便于回溯当时的整体状态）
-upstream_head = 03d388798de24457c19a66911a3dcf35d3864877
+upstream_head = 4633158ff5cd58d20e87b41089d3446b8a098a61
 
 # 串口协议版本
 protocol = v3
