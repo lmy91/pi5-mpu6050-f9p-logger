@@ -188,7 +188,16 @@ git pull --ff-only origin main
 python3 -m unittest tools.test_capture_serial raspberry_pi5.test_live_dashboard raspberry_pi5.test_gnss_time_sync raspberry_pi5.test_ntrip_client
 python3 -m py_compile tools/capture_serial.py raspberry_pi5/live_dashboard.py raspberry_pi5/ntrip_client.py raspberry_pi5/gnss_time_sync.py
 sudo systemctl start gnss-imu-logger.service gnss-imu-dashboard.service
-sleep 3
+# systemctl start 返回时，网页和运行目录可能尚未就绪。
+ready=0
+for attempt in $(seq 1 15); do
+    if curl -fsS --max-time 2 http://127.0.0.1:8080/api/status | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if s.get("service_running") else 1)'; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+test "$ready" = 1
 systemctl is-active gnss-imu-logger.service gnss-imu-dashboard.service
 git log -1 --oneline
 git status --short
@@ -254,3 +263,18 @@ git log -1 --oneline
 这里切换到旧版本分支，不删除新版提交或采集数据。若升级过服务模板，回退代码后也需重新安装旧模板。
 PC 修复并发布之后，Pi 先停止采集和两个服务，执行 `git switch main`，再按第 7 节更新。
 不要用 `git reset --hard`、`git clean` 或直接覆盖源码来处理更新冲突。
+
+## 10. 实机执行记录（2026-09-29）
+
+本流程已在当前 Windows PC 和 `pi5-ics` 实际执行：
+
+- PC 创建 `.venv`、安装 pyserial，44 项测试通过，Python 和 JavaScript 语法检查通过。
+- GitHub 推送成功；Pi 的四个历史覆盖文件已保存到 `backup-before-first-git-update` stash。
+- 更新前 Git 版本备份为 `backup/pi-before-update-20260929-004415`。
+- Pi 通过 Git 快进更新，44 项测试通过，采集和网页服务恢复。
+- 实际录制约 7 秒，网页计时增长，IMU/GNSS 在线，UBX 文件增长；随后停止保存。
+- 测试会话为 `data/decoded/20260929004442`，保留在 Pi 供核对，不提交 Git。
+- 基站配置恢复后，显示“已连接，收到有效RTCM”，转发字节数增长。
+
+实操修正：首次 stash 前先停止服务；启动后等待状态接口报告服务就绪，再恢复易失配置或验收。
+回退步骤已审阅，本次没有切回旧版进行故障演练。未执行 STM32 固件烧录。
