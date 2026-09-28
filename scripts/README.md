@@ -1,5 +1,8 @@
 # 安装与诊断脚本
 
+日常更新按[软件更新 SOP](../docs/SOFTWARE_UPDATE_SOP.md)通过 GitHub 拉取。
+`deploy_to_pi.sh` 是历史应急 SCP 覆盖脚本，不用于日常发布；它不会同步 Pi 的 Git 提交记录。
+
 这些脚本用于把一个全新的Raspberry Pi OS配置成可开机自启的采集设备。均应在
 项目根目录以普通用户执行；需要系统权限的步骤会自行调用`sudo`。
 

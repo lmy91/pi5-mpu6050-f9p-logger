@@ -21,7 +21,7 @@ cd ~/pi5-mpu6050-f9p-logger
 chmod +x scripts/*.sh raspberry_pi5/*.sh raspberry_pi5/base_station_ctl.py
 ```
 
-如果尚未创建远程仓库，也可以用SCP把PC上的整个项目目录复制到Pi家目录。
+日常更新统一通过 GitHub 拉取，避免 SCP 覆盖源码导致文件内容与 Git 版本记录不一致。
 
 ## 3. 配置两个UART
 
@@ -162,14 +162,8 @@ Pi热点时，Pi的上游网络转发也必须可用。只有本地网页能打�
 
 ## 8. 更新程序
 
-正式使用Git远程仓库后：
+统一流程为：PC 修改并测试 → 提交并推送 GitHub `main` → Pi 网线上网 → 停止保存 →
+备份旧版本 → 仅快进拉取 → 测试 → 启动服务 → 网页强制刷新并确认版本。
 
-```bash
-cd ~/pi5-mpu6050-f9p-logger
-git pull --ff-only
-python3 -m unittest raspberry_pi5.test_ntrip_client \
-  raspberry_pi5.test_live_dashboard tools.test_capture_serial
-sudo systemctl restart gnss-imu-logger.service gnss-imu-dashboard.service
-```
-
-保存期间先执行`gnss-imu-record-stop`，再更新或重启服务。
+逐步操作命令、首次整理历史 SCP 修改、联网排查和失败回退见
+[`SOFTWARE_UPDATE_SOP.md`](SOFTWARE_UPDATE_SOP.md)。

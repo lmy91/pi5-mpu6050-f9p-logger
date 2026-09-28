@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# 历史应急工具：不再用于日常发布。正式流程见 docs/SOFTWARE_UPDATE_SOP.md。
+# 本脚本直接覆盖源码且不更新 Pi 的 Git 记录；运行前必须自行停止采集。
 # 一键把 PC 上的修改同步到树莓派并重启服务
 #
 # 用法（在 PC 的 Git Bash 中，从项目根目录运行）：
