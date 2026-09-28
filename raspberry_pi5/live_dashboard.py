@@ -241,30 +241,49 @@ class GnssStore:
         except (OSError, ValueError, TypeError):
             return None
         now_ms = round(time.time() * 1000)
+        now_monotonic = time.monotonic()
+
+        def age_seconds(monotonic_key: str, unix_key: str,
+                        fallback_unix_ms: float | None = None) -> float | None:
+            """Return an elapsed duration that is immune to wall-clock corrections."""
+            updated_monotonic = state.get(monotonic_key)
+            if isinstance(updated_monotonic, (int, float)):
+                age = now_monotonic - updated_monotonic
+                # A negative value means the state file survived a reboot and
+                # belongs to a different monotonic clock epoch.
+                return age if age >= 0.0 else None
+            updated_ms = state.get(unix_key)
+            if not isinstance(updated_ms, (int, float)):
+                updated_ms = fallback_unix_ms
+            return (max(0.0, (now_ms - updated_ms) / 1000.0)
+                    if isinstance(updated_ms, (int, float)) else None)
+
         heartbeat_ms = state.get("updated_unix_ms")
         if not isinstance(heartbeat_ms, (int, float)):
             heartbeat_ms = round(stat.st_mtime * 1000)
-        heartbeat_age = max(0.0, (now_ms - heartbeat_ms) / 1000.0)
-        service_running = bool(state.get("service_active")) and heartbeat_age <= 3.5
+        heartbeat_age = age_seconds("updated_monotonic_s", "updated_unix_ms",
+                                    heartbeat_ms)
+        service_running = (bool(state.get("service_active")) and
+                           heartbeat_age is not None and heartbeat_age <= 3.5)
         recording = bool(state.get("recording")) and service_running
         recording_started_ms = state.get("recording_started_unix_ms")
-        recording_elapsed = (max(0.0, (now_ms - recording_started_ms) / 1000.0)
-                             if recording and isinstance(recording_started_ms, (int, float))
-                             else 0.0)
+        recording_elapsed = (age_seconds("recording_started_monotonic_s",
+                                         "recording_started_unix_ms")
+                             if recording else 0.0)
+        if recording_elapsed is None:
+            recording_elapsed = 0.0
         imu_updated_ms = state.get("imu_updated_unix_ms")
-        imu_age = (max(0.0, (now_ms - imu_updated_ms) / 1000.0)
-                   if isinstance(imu_updated_ms, (int, float)) else None)
+        imu_age = age_seconds("imu_updated_monotonic_s", "imu_updated_unix_ms")
         raw_imu = state.get("imu")
         imu = normalize_imu(raw_imu) if isinstance(raw_imu, dict) else None
         gnss_updated_ms = state.get("gnss_updated_unix_ms")
-        gnss_age = (max(0.0, (now_ms - gnss_updated_ms) / 1000.0)
-                    if isinstance(gnss_updated_ms, (int, float)) else None)
+        gnss_age = age_seconds("gnss_updated_monotonic_s", "gnss_updated_unix_ms")
         raw_gnss = state.get("gnss")
         data = normalize_gnss(raw_gnss) if isinstance(raw_gnss, dict) else None
         satellites = normalize_satellites(state.get("satellites"))
         satellites_updated_ms = state.get("satellites_updated_unix_ms")
-        satellites_age = (max(0.0, (now_ms - satellites_updated_ms) / 1000.0)
-                          if isinstance(satellites_updated_ms, (int, float)) else None)
+        satellites_age = age_seconds("satellites_updated_monotonic_s",
+                                    "satellites_updated_unix_ms")
         if not service_running:
             message = "定位服务没有运行或状态已失联"
         elif data is None:
@@ -298,6 +317,7 @@ class GnssStore:
             "session": state.get("session"),
             "updated_unix_ms": gnss_updated_ms,
             "imu_updated_unix_ms": imu_updated_ms,
+            "imu_updated_monotonic_s": state.get("imu_updated_monotonic_s"),
             "imu_age_s": round(imu_age, 2) if imu_age is not None else None,
             "imu_online": service_running and imu is not None and
                           imu_age is not None and imu_age <= 2.5,

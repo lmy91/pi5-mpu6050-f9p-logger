@@ -23,6 +23,7 @@ let recordingMode = false, recordingSession = null, localMode = true;
 let amapInstance = null, amapMarker = null, amapDots = [], amapLoading = false;
 let skySatellites = [];
 let imuHistory = [], latestImuKey = "";
+let imuTimelineOffsetMs = 0, latestImuSourceTimeMs = null;
 let commandHistory = [], commandHistoryIndex = 0;
 const IMU_HISTORY_SECONDS = 120;
 const axisColors = {x:"#3fa7ff", y:"#ffb84d", z:"#45e2a0", temp:"#e879f9"};
@@ -201,6 +202,25 @@ function validImu(value) {
     .every(name => Number.isFinite(value[name]));
 }
 
+function imuChartTimestamp(payload) {
+  const monotonic = payload.imu_updated_monotonic_s;
+  const unix = payload.imu_updated_unix_ms;
+  const source = Number.isFinite(monotonic) ? monotonic * 1000
+    : Number.isFinite(unix) ? unix : performance.now();
+  const previous = imuHistory.length ? imuHistory[imuHistory.length - 1].t : null;
+  let timestamp = source + imuTimelineOffsetMs;
+  if (previous !== null && timestamp <= previous) {
+    // Wall time may step backwards when the Pi first obtains GNSS/NTP time.
+    // Rebase once, preserving subsequent source-time spacing and arrival order.
+    const sourceStep = latestImuSourceTimeMs === null ? 1000 : source - latestImuSourceTimeMs;
+    const safeStep = Number.isFinite(sourceStep) && sourceStep > 0 ? sourceStep : 1000;
+    imuTimelineOffsetMs = previous + safeStep - source;
+    timestamp = source + imuTimelineOffsetMs;
+  }
+  latestImuSourceTimeMs = source;
+  return timestamp;
+}
+
 function chartNumber(value, span) {
   const magnitude = Math.abs(span);
   const digits = magnitude < .02 ? 4 : magnitude < .2 ? 3 : magnitude < 2 ? 2 : 1;
@@ -267,7 +287,7 @@ function updateImu(payload) {
   const key=`${imu.sample}:${imu.timer_us}`;
   if(key!==latestImuKey){
     latestImuKey=key;
-    const timestamp=Number.isFinite(payload.imu_updated_unix_ms)?payload.imu_updated_unix_ms:Date.now();
+    const timestamp=imuChartTimestamp(payload);
     imuHistory.push({t:timestamp,ax:imu.ax_m_s2,ay:imu.ay_m_s2,az:imu.az_m_s2,
       gx:imu.gx_deg_s,gy:imu.gy_deg_s,gz:imu.gz_deg_s,temp:imu.temp_deg_c});
     const cutoff=timestamp-IMU_HISTORY_SECONDS*1000;

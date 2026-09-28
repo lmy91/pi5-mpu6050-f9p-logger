@@ -553,6 +553,7 @@ def main() -> None:
     last_status_imu = 0
     latest_imu: dict[str, int | float] | None = None
     latest_imu_unix_ms: int | None = None
+    latest_imu_monotonic_s: float | None = None
     latest_gnss: dict[str, int | float] | None = None
     latest_gnss_unix_ms: int | None = None
     latest_gnss_monotonic_s: float | None = None
@@ -561,11 +562,13 @@ def main() -> None:
     satellite_epoch_key: tuple[int, int, int] | None = None
     latest_satellites: list[dict[str, int]] = []
     latest_satellites_unix_ms: int | None = None
+    latest_satellites_monotonic_s: float | None = None
     recording_error: str | None = None
     recording_started_unix_ms: int | None = None
+    recording_started_monotonic_s: float | None = None
 
     def start_recording() -> pathlib.Path:
-        nonlocal recording_started_unix_ms
+        nonlocal recording_started_unix_ms, recording_started_monotonic_s
         session = recorder.start()
         if session is None:
             raise OSError("no CSV type was selected")
@@ -576,15 +579,17 @@ def main() -> None:
             recorder.stop()
             raise
         recording_started_unix_ms = round(time.time() * 1000)
+        recording_started_monotonic_s = time.monotonic()
         return session
 
     def stop_recording() -> pathlib.Path | None:
-        nonlocal recording_started_unix_ms
+        nonlocal recording_started_unix_ms, recording_started_monotonic_s
         session = recorder.session_dir
         if ubx_tap is not None:
             ubx_tap.stop_recording()
         recorder.stop()
         recording_started_unix_ms = None
+        recording_started_monotonic_s = None
         return session
 
     print(f"Position service on {args.port} at {args.baud} baud")
@@ -599,21 +604,28 @@ def main() -> None:
 
     def publish_state(service_active: bool = True) -> None:
         now_unix = time.time()
+        now_monotonic = time.monotonic()
         write_runtime_state(args.state_file, {
             "protocol_version": 3,
             "service_active": service_active,
             "recording": recorder.active,
             "session": recorder.session_dir.name if recorder.active and recorder.session_dir else None,
             "recording_started_unix_ms": recording_started_unix_ms if recorder.active else None,
+            "recording_started_monotonic_s": (recording_started_monotonic_s
+                                               if recorder.active else None),
             "updated_unix_ms": round(now_unix * 1000),
+            "updated_monotonic_s": now_monotonic,
             "started_unix_ms": round(started_unix * 1000),
+            "started_monotonic_s": started,
             "imu_updated_unix_ms": latest_imu_unix_ms,
+            "imu_updated_monotonic_s": latest_imu_monotonic_s,
             "imu": latest_imu,
             "gnss_updated_unix_ms": latest_gnss_unix_ms,
             "gnss_updated_monotonic_s": latest_gnss_monotonic_s,
             "gps_utc_leap_seconds": gps_utc_leap_seconds,
             "gnss": latest_gnss,
             "satellites_updated_unix_ms": latest_satellites_unix_ms,
+            "satellites_updated_monotonic_s": latest_satellites_monotonic_s,
             "satellites": latest_satellites,
             "recording_error": recording_error,
             "ubx": ubx_tap.snapshot() if ubx_tap is not None else {
@@ -767,6 +779,7 @@ def main() -> None:
                     imu_rows += 1
                     latest_imu = imu_live_sample(row)
                     latest_imu_unix_ms = round(time.time() * 1000)
+                    latest_imu_monotonic_s = time.monotonic()
                 elif parts[0] == "GNSS":
                     row = parse_gnss(parts)
                     if row is None:
@@ -803,6 +816,7 @@ def main() -> None:
                     if satellite_epoch_key == key and len(satellite_epoch) == end[3]:
                         latest_satellites = satellite_epoch
                         latest_satellites_unix_ms = round(time.time() * 1000)
+                        latest_satellites_monotonic_s = time.monotonic()
                         publish_state()
                         last_state = status_now
                     else:

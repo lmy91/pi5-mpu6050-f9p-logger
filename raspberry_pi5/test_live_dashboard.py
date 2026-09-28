@@ -161,6 +161,57 @@ class LiveDashboardTest(unittest.TestCase):
             self.assertTrue(store.set_recording(False)["ok"])
             self.assertFalse(control_file.exists())
 
+    def test_live_state_elapsed_times_survive_wall_clock_rollback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            state_file = root / "live.json"
+            gnss = dict.fromkeys(COLUMNS, 0)
+            gnss.update(gps_week=2435, gps_tow_ms=123000, fix=3, carr_soln=2,
+                        lat_deg=30.5, lon_deg=114.3)
+            state_file.write_text(json.dumps({
+                "service_active": True, "recording": True,
+                # These wall-clock values are deliberately in the future,
+                # simulating a Pi clock that was corrected backwards.
+                "updated_unix_ms": 2_000_000, "gnss_updated_unix_ms": 2_000_000,
+                "imu_updated_unix_ms": 2_000_000,
+                "recording_started_unix_ms": 1_900_000,
+                "updated_monotonic_s": 500.0,
+                "gnss_updated_monotonic_s": 499.5,
+                "imu_updated_monotonic_s": 499.75,
+                "recording_started_monotonic_s": 487.5,
+                "imu": {"sample": 100, "gps_week": 2435, "gps_tow_us": 123000000,
+                        "time_valid": 1, "timer_us": 1000000,
+                        "ax_m_s2": 0.1, "ay_m_s2": 0.2, "az_m_s2": 9.8,
+                        "temp_deg_c": 32.0,
+                        "gx_deg_s": 0.01, "gy_deg_s": 0.02, "gz_deg_s": 0.03},
+                "gnss": gnss, "counts": {},
+            }), encoding="utf-8")
+            with (mock.patch("raspberry_pi5.live_dashboard.time.time", return_value=1000.0),
+                  mock.patch("raspberry_pi5.live_dashboard.time.monotonic",
+                             return_value=500.5)):
+                result = GnssStore(root, state_file).latest()
+            self.assertTrue(result["service_running"])
+            self.assertTrue(result["online"])
+            self.assertTrue(result["imu_online"])
+            self.assertEqual(result["age_s"], 1.0)
+            self.assertEqual(result["imu_age_s"], 0.75)
+            self.assertEqual(result["recording_elapsed_s"], 13.0)
+
+    def test_live_state_rejects_monotonic_timestamp_from_previous_boot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            state_file = root / "live.json"
+            state_file.write_text(json.dumps({
+                "service_active": True,
+                "updated_unix_ms": 2_000_000,
+                "updated_monotonic_s": 10_000.0,
+            }), encoding="utf-8")
+            with (mock.patch("raspberry_pi5.live_dashboard.time.time", return_value=1000.0),
+                  mock.patch("raspberry_pi5.live_dashboard.time.monotonic",
+                             return_value=10.0)):
+                result = GnssStore(root, state_file).latest()
+            self.assertFalse(result["service_running"])
+
     def test_ntrip_config_is_volatile_and_password_is_not_returned(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
