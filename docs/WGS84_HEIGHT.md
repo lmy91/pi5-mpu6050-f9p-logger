@@ -37,7 +37,7 @@ CSV 原 hmsl_m 位置改成 height_m，不再保存 hmsl_m。网页标签为“W
 4. PC 使用更新后的 host/imu_serial_qt.py。旧打包 EXE 需重新打包。
 5. 组合导航的数据读取改为 gnss0.height_m；经纬度仍为度，算法需要弧度时乘 pi/180。
 
-仅修改本地 Pi 项目不会更新远端 Pi。对有效观测继续使用已有 GPS周/TOW对时、定位
+更新Pi必须通过软件更新SOP拉取已发布版本。对有效观测继续使用已有 GPS周/TOW对时、定位
 有效性和精度门限。此次使用 NAV-PVT，未切换至 HPPOSLLH；输出分辨率不等于精度。
 
 历史 CSV 不能仅靠 hMSL 精确恢复大地高。若同会话原始 UBX 包含 NAV-PVT，可按历元
@@ -45,6 +45,9 @@ CSV 原 hmsl_m 位置改成 height_m，不再保存 hmsl_m。网页标签为“W
 
 参考：[u-blox F9P 接口手册](https://cdn.sparkfun.com/assets/f/7/4/3/5/PM-15136.pdf)。
 ## 本次本地验证记录
+
+后续已完成树莓派部署和室内验收，见[2026-10-02室内验收记录](WGS84_INDOOR_ACCEPTANCE_20261002.md)。
+以下COM7检查是部署前的历史记录；实际Pi输入链路现已验证。
 
 - STM32 和 Pi 固件均完成 Release 编译。
 - 主项目采集器10项测试、Pi采集/网页/对时/NTRIP共46项测试通过。
