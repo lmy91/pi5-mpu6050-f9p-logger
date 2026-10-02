@@ -1,7 +1,9 @@
+> 当前输出为WGS84大地高，height_m单位米；新版GNSS记录使用GNSS4前缀。详见[字段与部署](../docs/WGS84_HEIGHT.md)。
+
 # STM32F103C8T6同步采集固件
 
 本目录是无HAL依赖的STM32F103C8T6裸机工程，负责MPU6050采样、F9P配置与
-解析、PPS/IMU中断捕获、GNSS时间标记、RTCM转发以及协议v3串口输出。
+解析、PPS/IMU中断捕获、GNSS时间标记、RTCM转发以及协议v4串口输出。
 
 ## 目录内容
 
@@ -32,7 +34,7 @@ cmake --build --preset Release
 
 核心配置：72MHz系统时钟；TIM2 1MHz扩展计时；PA0捕获F9P TIMEPULSE，PA1
 捕获MPU6050 DATA_RDY；USART1以460800 bit/s连接树莓派，USART2以115200
-bit/s连接F9P。STM32启动后自动配置F9P并持续输出协议v3。
+bit/s连接F9P。STM32启动后自动配置F9P并持续输出协议v4。
 
 固件与硬件接线强耦合。修改GPIO、串口波特率、输出字段或F9P消息频率后，必须同步
 修改树莓派采集器、测试和文档，并进行长时间丢帧/串口溢出验证。

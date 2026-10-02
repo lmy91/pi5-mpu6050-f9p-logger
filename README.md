@@ -1,3 +1,5 @@
+> 2026-10-02 更新：ASCII协议v4以GNSS4输出WGS84大地高；CSV使用height_m，去掉hmsl_m。部署与字段定义见[大地高输出说明](docs/WGS84_HEIGHT.md)。旧稳定版说明保留作历史参考。
+
 # Raspberry Pi 5 + STM32 + MPU6050 + ZED-F9P采集系统
 
 当前稳定版：`v1.0.0`。该版本对应2026-09-14在树莓派5上连续运行验证的

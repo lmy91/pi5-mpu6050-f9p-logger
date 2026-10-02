@@ -1,18 +1,15 @@
-# 固定固件发布文件
+# WGS84大地高固件（2026-10-02）
 
-本目录保存无需本地编译即可烧录的STM32F103C8T6固件，对应仓库稳定版源码。
+目标STM32F103C8T6。源码从主项目同步，协议v4使用GNSS4，只输出WGS84大地高；
+Pi需要同步更新采集程序。此版本已完成Release编译和输出协议测试，未验证组合导航。
 
-| 文件 | 用途 | SHA-256 |
-|---|---|---|
-| `mpu6050_f9p_navigation.hex` | STM32CubeProgrammer或其他烧录器使用的Intel HEX | `1DCFF9A3036BEABFFD0CC02D584A79A2729F4B69A549F884C5E7DF73FA2B1C00` |
-| `mpu6050_f9p_navigation.elf` | 烧录、符号调试和反汇编 | `5E14349482AFE638644DA4B66B326DE3574F545D25B1E70FCDC747F5C5ABF039` |
+| 文件 | SHA-256 |
+|---|---|
+| mpu6050_f9p_navigation.hex | 5C52C51518FCCA2626D4BEE4202A490090C0302D0E01A3DA4EEF9AE5C3839EC5 |
+| mpu6050_f9p_navigation.elf | A415A70AF927C4E28545B9243DB164C8D98FADE9E6D233D0CD8C10BA03BE9505 |
 
-完整ST-Link接线和图形/命令行烧录步骤见
-[`docs/FIRMWARE_FLASH.md`](../docs/FIRMWARE_FLASH.md)。发布文件必须来自干净的
-`Release`构建；重新编译后应同时替换ELF和HEX、更新上表校验值、运行主机端协议
-测试，并在实机验证100 Hz IMU、1 Hz GNSS/RAWX与RTCM转发后再提交。
+固件源码SHA-256：D99A21CF48A93199D178ED6E5D949A635B13EFB9582CAC60BFEBBFB02F03B37E
 
-发布文件对应的固件基线与上游提交记录在根目录
-[`UPSTREAM_VERSION`](../UPSTREAM_VERSION)。同步固件源码后必须重新编译并更新本目录
-的 HEX/ELF，保证产物与源码来自同一提交，避免烧录到过期二进制。
-
+对应上游冻结提交ee9dbd7220f61ef8209cd4e490a4ad19cd498319，来源记录在[UPSTREAM_VERSION](../UPSTREAM_VERSION)。
+详见[高度与部署说明](../docs/WGS84_HEIGHT.md)。
+2026-10-02 已通过ST-Link烧录到已接入的STM32，写入校验通过；实际串口高程值尚未确认。

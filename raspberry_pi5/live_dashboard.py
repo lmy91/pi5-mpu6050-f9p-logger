@@ -121,7 +121,7 @@ def normalize_gnss(row: dict[str, str]) -> dict[str, int | float | str | None]:
         "diff_soln": _number(row, "diff_soln", True),
         "lat_deg": _number(row, "lat_deg"),
         "lon_deg": _number(row, "lon_deg"),
-        "height_m": _number(row, "hmsl_m"),
+        "height_m": _number(row, "height_m"),
         "h_acc_m": h_acc_m,
         "v_acc_m": _number(row, "v_acc_m"),
         "vel_n_m_s": _number(row, "vel_n_m_s"),

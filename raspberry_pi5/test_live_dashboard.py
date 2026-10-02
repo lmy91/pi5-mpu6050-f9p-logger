@@ -13,12 +13,23 @@ from raspberry_pi5.live_dashboard import (GnssStore, newest_gnss_file, normalize
 COLUMNS = [
     "gps_week", "gps_tow_ms", "time_valid", "rx_timer_us", "fix", "num_sv",
     "flags", "flags2", "carr_soln", "gnss_fix_ok", "diff_soln", "lat_deg", "lon_deg",
-    "hmsl_m", "h_acc_m", "v_acc_m", "vel_n_m_s", "vel_e_m_s", "vel_d_m_s",
+    "height_m", "h_acc_m", "v_acc_m", "vel_n_m_s", "vel_e_m_s", "vel_d_m_s",
     "ground_speed_m_s", "s_acc_m_s", "pdop",
 ]
 
 
 class LiveDashboardTest(unittest.TestCase):
+    def test_height_is_geodetic_height_without_msl_fallback(self):
+        row = dict.fromkeys(COLUMNS, "0")
+        row.update(hmsl_m="45.0", height_m="-12.345")
+        value = normalize_gnss(row)
+        self.assertEqual(value["height_m"], -12.345)
+        self.assertNotIn("hmsl_m", value)
+        row.pop("height_m")
+        self.assertIsNone(normalize_gnss(row)["height_m"])
+        row["height_m"] = ""
+        self.assertIsNone(normalize_gnss(row)["height_m"])
+
     def test_normalize_live_imu(self):
         value = normalize_imu({
             "sample": 123, "gps_week": 2435, "gps_tow_us": 456000000,

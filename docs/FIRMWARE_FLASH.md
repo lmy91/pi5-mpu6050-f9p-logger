@@ -53,7 +53,7 @@ arm-none-eabi-objcopy -O ihex `
 
 ## 固件启动后的输出
 
-PA9输出纯ASCII协议v3：`IMU`、`GNSS`、`SAT/SAT_END`、
+PA9输出纯ASCII协议v4：`IMU`、`GNSS4`、`SAT/SAT_END`、
 `RAWX/RAWX_MEAS/RAWX_END`及以`#`开头的诊断行。STM32启动时把F9P UART1
 配置成115200 bit/s、UBX输出和RTCM3输入，并启用PVT、SAT、RAWX、TIM-TP和
 SFRBX相关数据。F9P原始SFRBX不转换为ASCII，由Pi GPIO5旁路保存。

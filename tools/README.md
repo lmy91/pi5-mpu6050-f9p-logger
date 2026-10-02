@@ -1,10 +1,12 @@
+> 当前输出为WGS84大地高，height_m单位米；新版GNSS记录使用GNSS4前缀。详见[字段与部署](../docs/WGS84_HEIGHT.md)。
+
 # 采集工具
 
 本目录是数据入口，可在树莓派或安装了Python/pyserial的PC上使用。
 
 | 文件 | 功能 |
 |---|---|
-| `capture_serial.py` | 解码STM32协议v3，保存IMU/GNSS/RAWX/sync.csv，旁路保存UBX，发布实时状态并协同NTRIP |
+| `capture_serial.py` | 解码STM32协议v4，保存IMU/GNSS/RAWX/sync.csv，旁路保存UBX，发布实时状态并协同NTRIP |
 | `test_capture_serial.py` | 协议、控制文件、状态和保存逻辑测试 |
 
 ## 直接采集
