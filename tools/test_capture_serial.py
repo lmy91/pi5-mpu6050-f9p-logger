@@ -11,10 +11,22 @@ from tools.capture_serial import (CsvRecorder, F9pUbxTap, GNSS_COLUMNS, IMU_COLU
                                   imu_live_sample, parse_gnss, parse_imu,
                                   parse_sync, u32_delta, create_session_directory,
                                   parse_rawx_header, parse_rawx_measurement,
-                                  parse_satellite, parse_satellite_end)
+                                  parse_satellite, parse_satellite_end,
+                                  satellite_epoch_complete)
 
 
 class GnssProtocolTests(unittest.TestCase):
+    def test_empty_sky_epoch_is_valid_and_incomplete_epochs_are_rejected(self):
+        end = parse_satellite_end("SAT_END,0,1000,0,0".split(","))
+        assert end is not None
+        self.assertTrue(satellite_epoch_complete(None, 0, end))
+        self.assertFalse(satellite_epoch_complete((0, 1000, 0), 1, end))
+        populated = parse_satellite_end("SAT_END,2435,1000,1,2".split(","))
+        assert populated is not None
+        self.assertTrue(satellite_epoch_complete((2435, 1000, 1), 2, populated))
+        self.assertFalse(satellite_epoch_complete((2435, 1000, 1), 1, populated))
+        self.assertFalse(satellite_epoch_complete((2435, 2000, 1), 2, populated))
+
     def test_live_imu_payload_uses_deg_s(self) -> None:
         parsed = parse_imu(
             "IMU,7,2435,123456000,1,999000,16384,0,-16384,0,131,-262,0".split(","),

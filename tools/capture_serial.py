@@ -158,6 +158,13 @@ def parse_satellite_end(parts: list[str]) -> tuple[int, int, int, int] | None:
     return week, tow_ms, valid, count
 
 
+def satellite_epoch_complete(key: tuple[int, int, int] | None, count: int,
+                             end: tuple[int, int, int, int]) -> bool:
+    """A zero-satellite NAV-SAT epoch legitimately contains only SAT_END."""
+    return ((key is None and count == 0 and end[3] == 0) or
+            (key == end[:3] and count == end[3]))
+
+
 def parse_sync(line: str) -> dict[str, int] | None:
     """Parse one "# sync,key=value,..." diagnostic line into its counters."""
     if not line.startswith("# sync,"):
@@ -818,7 +825,8 @@ def main() -> None:
                     if end is None:
                         invalid += 1; continue
                     key = end[:3]
-                    if satellite_epoch_key == key and len(satellite_epoch) == end[3]:
+                    if satellite_epoch_complete(satellite_epoch_key,
+                                                len(satellite_epoch), end):
                         latest_satellites = satellite_epoch
                         latest_satellites_unix_ms = round(time.time() * 1000)
                         latest_satellites_monotonic_s = time.monotonic()
