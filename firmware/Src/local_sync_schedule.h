@@ -15,6 +15,7 @@ typedef struct {
     uint32_t sequence;
     uint32_t faults;
     uint8_t high;
+    uint16_t high_us; /* zero preserves v1 5 ms; v2 sets 5/10/15 ms */
 } local_sync_schedule_t;
 
 /* Called AFTER the hardware toggle. No GPIO software edge, division or I/O.
@@ -24,8 +25,8 @@ static inline uint32_t local_sync_advance(volatile local_sync_schedule_t *s, uin
 {
     s->high ^= 1u;
     if (s->high && ++s->sequence == 0u) s->faults |= LOCAL_SYNC_SEQUENCE_END;
-    uint32_t interval = s->high ? LOCAL_SYNC_HIGH_US :
-                               LOCAL_SYNC_PERIOD_US - LOCAL_SYNC_HIGH_US;
+    uint32_t high_us = s->high_us ? s->high_us : LOCAL_SYNC_HIGH_US;
+    uint32_t interval = s->high ? high_us : LOCAL_SYNC_PERIOD_US - high_us;
     if (now < s->due_us || now - s->due_us >= interval - LOCAL_SYNC_GUARD_US)
         s->faults |= LOCAL_SYNC_LATE;
     if (!s->faults) s->due_us += interval;

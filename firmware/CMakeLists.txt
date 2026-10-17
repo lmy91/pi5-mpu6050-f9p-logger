@@ -22,6 +22,10 @@ set(PROJECT_NAME mpu6050_f9p_navigation)
 
 # Create an executable object type
 add_executable(${PROJECT_NAME})
+option(LOCAL_SYNC_CODED_V2 "Width-coded local sync (bench validation required before flashing)" OFF)
+if(LOCAL_SYNC_CODED_V2)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE LOCAL_SYNC_CODED_V2=1)
+endif()
 
 # Include additional CMake files for flags, components, and files
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/flags.cmake)
